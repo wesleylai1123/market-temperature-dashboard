@@ -14,9 +14,10 @@
 ------------------
 美股：
   估值   Shiller CAPE      multpl.com 解析（非官方、較脆弱）
-  情緒   CNN 恐懼貪婪      production.dataviz.cnn.io（非官方端點）
-  景氣   殖利率曲線 10Y–2Y  FRED fredgraph.csv?id=T10Y2Y（免金鑰、最穩）
-  利率   10年期殖利率       FRED fredgraph.csv?id=DGS10（免金鑰、最穩）
+  情緒   CNN 恐懼貪婪      production.dataviz.cnn.io（非官方端點，需帶 Referer）
+  景氣   殖利率曲線 10Y–2Y  美國財政部每日殖利率 CSV（.gov、免金鑰、10Y-2Y）
+  利率   10年期殖利率       美國財政部每日殖利率 CSV（.gov、免金鑰）
+                          (原用 FRED fredgraph.csv，從 GitHub runner 會 timeout，改用財政部)
 台股：
   資金   外資買賣超        TWSE 開放資料（單日 proxy）
   估值/情緒/景氣           尚未實作 → NotImplementedError → 沿用舊值
@@ -63,14 +64,38 @@ def _get(url, timeout=30, retries=3, headers=None):
     raise last_exc
 
 
-def _last_csv_value(csv_text):
-    """FRED fredgraph.csv：取最後一筆非缺值（缺值以 '.' 表示）。"""
-    rows = [r for r in csv_text.strip().splitlines() if r]
-    for row in reversed(rows[1:]):  # 跳過表頭
-        parts = row.split(",")
-        if len(parts) >= 2 and parts[1].strip() not in (".", "", "NaN"):
-            return float(parts[1])
-    raise ValueError("FRED CSV 沒有可用數值")
+_treasury_cache = {}
+
+
+def _treasury_latest():
+    """美國財政部每日公債殖利率（.gov、無金鑰、比 FRED 穩）。
+
+    回傳最新一筆的 {欄位名: 值(float)}，例如 {'2 Yr': 3.9, '10 Yr': 4.5, ...}。
+    年初可能尚無當年資料，會自動退回前一年。模組層級快取避免重複抓取。
+    """
+    if _treasury_cache:
+        return _treasury_cache
+    base = ("https://home.treasury.gov/resource-center/data-chart-center/"
+            "interest-rates/daily-treasury-rates.csv/{y}/all"
+            "?type=daily_treasury_yield_curve&field_tdr_date_value={y}&page&_format=csv")
+    year = datetime.now(timezone.utc).year
+    for y in (year, year - 1):
+        csv_text = _get(base.format(y=y))
+        lines = [ln for ln in csv_text.strip().splitlines() if ln]
+        if len(lines) < 2:
+            continue
+        header = [h.strip().strip('"') for h in lines[0].split(",")]
+        row = [c.strip().strip('"') for c in lines[1].split(",")]  # 第一列即最新
+        out = {}
+        for k, v in zip(header, row):
+            try:
+                out[k] = float(v)
+            except ValueError:
+                pass  # 日期等非數值欄位略過
+        if out:
+            _treasury_cache.update(out)
+            return _treasury_cache
+    raise ValueError("US Treasury CSV 沒有可用數值")
 
 
 # ---- 美股 ---------------------------------------------------------------------
@@ -96,17 +121,15 @@ def fetch_us_fear_greed():
     return round(float(obj["fear_and_greed"]["score"]), 1)
 
 
-def fetch_fred(series_id):
-    csv = _get("https://fred.stlouisfed.org/graph/fredgraph.csv?id=" + series_id)
-    return _last_csv_value(csv)
-
-
 def fetch_us_yield_curve():
-    return fetch_fred("T10Y2Y")
+    """殖利率曲線 10Y–2Y（%），由美國財政部 2Y/10Y 相減。"""
+    y = _treasury_latest()
+    return round(y["10 Yr"] - y["2 Yr"], 2)
 
 
 def fetch_us_10y():
-    return fetch_fred("DGS10")
+    """美國10年期公債殖利率（%），美國財政部。"""
+    return _treasury_latest()["10 Yr"]
 
 
 # ---- 台股 ---------------------------------------------------------------------

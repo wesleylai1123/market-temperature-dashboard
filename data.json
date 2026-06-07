@@ -60,7 +60,7 @@
           "invert": false,
           "direction": "倒掛(負) → 防禦 / 正斜率 → 偏積極",
           "desc": "10年期減2年期公債殖利率(%)。正值=正常景氣擴張；負值(倒掛)是經典衰退領先訊號，須轉防禦。",
-          "source": "FRED T10Y2Y (免金鑰)",
+          "source": "US Treasury (免金鑰)",
           "stale": true
         },
         "rate": {
@@ -72,7 +72,7 @@
           "invert": true,
           "direction": "殖利率越高 → 越防禦",
           "desc": "美國10年期公債殖利率(%)，無風險利率的錨。越高對高估值科技股壓力越大、折現率上升不利股市。",
-          "source": "FRED DGS10 (免金鑰)",
+          "source": "US Treasury (免金鑰)",
           "stale": true
         }
       }
