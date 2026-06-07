@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>市場溫度儀表板 · Market Temperature Dashboard</title>
+<style>
+  :root {
+    --bg: #0b0f17;
+    --panel: #131a26;
+    --panel-2: #1a2333;
+    --line: #243049;
+    --text: #e6edf6;
+    --muted: #8b99ad;
+    --green: #2ecc71;
+    --amber: #f5c84b;
+    --red: #ff5d5d;
+    --accent: #4f8cff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: radial-gradient(1200px 600px at 70% -10%, #15203400, #0b0f17), var(--bg);
+    color: var(--text);
+    font-family: -apple-system, "Segoe UI", "PingFang TC", "Microsoft JhengHei", Roboto, sans-serif;
+    line-height: 1.5;
+  }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 28px 20px 64px; }
+  header.top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px; justify-content: space-between; margin-bottom: 6px; }
+  h1 { font-size: 22px; margin: 0; letter-spacing: .5px; }
+  .sub { color: var(--muted); font-size: 13px; }
+  .updated { color: var(--muted); font-size: 12px; }
+
+  .overall {
+    margin: 22px 0 26px;
+    background: linear-gradient(180deg, var(--panel-2), var(--panel));
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 22px 24px;
+    display: flex; align-items: center; gap: 22px; flex-wrap: wrap;
+  }
+  .lamp { width: 64px; height: 64px; border-radius: 50%; flex: 0 0 auto; box-shadow: 0 0 0 6px #0000, 0 0 28px 2px currentColor; }
+  .lamp.sm { width: 34px; height: 34px; }
+  .overall .meta { flex: 1 1 240px; }
+  .overall .verdict { font-size: 24px; font-weight: 700; }
+  .overall .advice { color: var(--muted); font-size: 14px; margin-top: 2px; }
+  .overall .score { font-variant-numeric: tabular-nums; font-size: 13px; color: var(--muted); margin-top: 6px; }
+
+  .markets { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media (max-width: 760px) { .markets { grid-template-columns: 1fr; } }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 18px 18px 8px; }
+  .card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .card-head h2 { font-size: 17px; margin: 0; }
+  .card-head .v { margin-left: auto; text-align: right; }
+  .card-head .v b { font-size: 15px; }
+  .card-head .v small { display: block; color: var(--muted); font-size: 11px; }
+
+  .factor { padding: 12px 0; border-top: 1px solid var(--line); }
+  .factor:first-of-type { border-top: 0; }
+  .frow { display: flex; align-items: center; gap: 10px; }
+  .fname { font-size: 13px; min-width: 0; flex: 1 1 auto; }
+  .fname .badge { font-size: 10px; color: var(--amber); border: 1px solid #5a4a1c; background: #2a2410; padding: 1px 6px; border-radius: 999px; margin-left: 6px; white-space: nowrap; }
+  .finput { width: 78px; }
+  .finput input {
+    width: 100%; text-align: right; font-variant-numeric: tabular-nums;
+    background: var(--panel-2); border: 1px solid var(--line); color: var(--text);
+    border-radius: 8px; padding: 4px 8px; font-size: 13px;
+  }
+  .finput input:focus { outline: none; border-color: var(--accent); }
+  .unit { color: var(--muted); font-size: 11px; width: 22px; }
+  .bar { height: 8px; border-radius: 999px; background: #0e1422; overflow: hidden; margin-top: 8px; border: 1px solid var(--line); }
+  .bar > span { display: block; height: 100%; border-radius: 999px; transition: width .25s ease, background .25s ease; }
+  .fmeta { display: flex; justify-content: space-between; margin-top: 5px; }
+  .dir { color: var(--muted); font-size: 11px; }
+  .pct { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+  .controls { margin-top: 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media (max-width: 760px) { .controls { grid-template-columns: 1fr; } }
+  .controls .card { padding: 16px 18px 18px; }
+  .controls h3 { font-size: 14px; margin: 0 0 12px; display: flex; align-items: center; gap: 8px; }
+  .controls h3 button { margin-left: auto; font-size: 11px; background: var(--panel-2); color: var(--muted); border: 1px solid var(--line); border-radius: 8px; padding: 4px 9px; cursor: pointer; }
+  .controls h3 button:hover { color: var(--text); border-color: var(--accent); }
+  .slider { display: grid; grid-template-columns: 96px 1fr 48px; align-items: center; gap: 10px; margin: 9px 0; }
+  .slider label { font-size: 12px; color: var(--muted); }
+  .slider input[type=range] { width: 100%; accent-color: var(--accent); }
+  .slider .val { font-size: 12px; text-align: right; font-variant-numeric: tabular-nums; }
+  .warn { color: var(--amber); font-size: 11px; margin-top: 6px; }
+
+  footer { margin-top: 30px; color: var(--muted); font-size: 12px; border-top: 1px solid var(--line); padding-top: 16px; }
+  footer code { background: var(--panel-2); padding: 1px 6px; border-radius: 6px; color: var(--text); }
+  .legend { display: flex; gap: 16px; margin: 8px 0 0; font-size: 12px; color: var(--muted); }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; vertical-align: middle; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>市場溫度儀表板</h1>
+      <div class="sub">多因子分數卡 · 台美雙燈 · 逆向(contrarian)訊號 — 非投資建議</div>
+    </div>
+    <div class="updated" id="updated">資料時間：—</div>
+  </header>
+
+  <div class="overall" id="overall">
+    <div class="lamp" id="overallLamp" style="color:#888"></div>
+    <div class="meta">
+      <div class="verdict" id="overallVerdict">—</div>
+      <div class="advice" id="overallAdvice">載入中…</div>
+      <div class="score" id="overallScore"></div>
+    </div>
+    <div class="legend">
+      <span><i style="background:var(--green)"></i>積極 ≥ 60</span>
+      <span><i style="background:var(--amber)"></i>中性 40–60</span>
+      <span><i style="background:var(--red)"></i>防禦 &lt; 40</span>
+    </div>
+  </div>
+
+  <div class="markets" id="markets"></div>
+
+  <div class="controls">
+    <div class="card">
+      <h3>因子權重 <button id="resetWeights">↺ 回到等權重</button></h3>
+      <div id="weights"></div>
+      <div class="warn">⚠ 別用近期行情去 tune 權重，那就是 overfitting。v1 建議等權重。</div>
+    </div>
+    <div class="card">
+      <h3>台美配置（整體燈號加權）</h3>
+      <div id="allocation"></div>
+      <div class="warn">依你的實際部位調整，整體燈號 = 美股分數 × 美股配置 + 台股分數 × 台股配置。</div>
+    </div>
+  </div>
+
+  <footer>
+    <p><b>標準化（坑 1）：</b>目前 <code>scoreOf()</code> 用「校準區間線性映射」當佔位。正式版只要把這一個函式換成「對過去 N 年取百分位 (percentile rank)」即可，其餘 UI 不用動。</p>
+    <p><b>回測對齊：</b>每個因子的 <code>scoreOf()</code> 輸出就是未來回測的一個 feature，資料結構已對齊 vectorbt。景氣/PMI 這類總經數據有發布落差且會事後修正，回測要用「當時可得」的值，避免 lookahead bias。</p>
+    <p>讀取 <code>data.json</code>；抓不到任何欄位就沿用範例值並標「⚠ 沿用舊值」，<b>永不開天窗</b>。本機請用 <code>python3 -m http.server</code> 開啟（直接 file:// 會被 CORS 擋掉 fetch）。</p>
+  </footer>
+</div>
+
+<script>
+"use strict";
+
+// ---- Fallback seed (used when data.json 抓不到) -------------------------------
+const SEED = {
+  updated_at: null,
+  dimensions: ["valuation", "sentiment", "cycle", "rate"],
+  dimension_labels: { valuation: "估值", sentiment: "情緒/風險", cycle: "景氣", rate: "利率/資金" },
+  weights: { valuation: 0.25, sentiment: 0.25, cycle: 0.25, rate: 0.25 },
+  allocation: { US: 0.5, TW: 0.5 },
+  markets: {
+    US: { label: "美股", factors: {
+      valuation: { label: "估值 · Shiller CAPE", value: 36, unit: "x", cal_min: 10, cal_max: 40, invert: true, direction: "越貴 → 越防禦", stale: true },
+      sentiment: { label: "情緒 · CNN 恐懼貪婪", value: 35, unit: "", cal_min: 0, cal_max: 100, invert: true, direction: "貪婪 → 防禦 / 恐懼 → 積極", stale: true },
+      cycle:     { label: "景氣 · 殖利率曲線 10Y–2Y", value: 0.25, unit: "%", cal_min: -1, cal_max: 2.5, invert: false, direction: "倒掛 → 防禦", stale: true },
+      rate:      { label: "利率 · 10年期殖利率", value: 4.55, unit: "%", cal_min: 1, cal_max: 5.5, invert: true, direction: "越高 → 越防禦", stale: true },
+    }},
+    TW: { label: "台股", factors: {
+      valuation: { label: "估值 · 大盤本益比", value: 18, unit: "x", cal_min: 10, cal_max: 25, invert: true, direction: "越貴 → 越防禦", stale: true },
+      sentiment: { label: "情緒 · 波動/融資餘額", value: 50, unit: "", cal_min: 0, cal_max: 100, invert: true, direction: "貪婪 → 防禦", stale: true },
+      cycle:     { label: "景氣 · 景氣對策信號", value: 28, unit: "分", cal_min: 9, cal_max: 45, invert: true, direction: "紅燈 → 防禦 / 藍燈 → 加碼", stale: true },
+      rate:      { label: "資金 · 外資買賣超", value: -50, unit: "億", cal_min: -300, cal_max: 300, invert: false, direction: "買超 → 積極", stale: true },
+    }},
+  },
+};
+
+let DATA = null;
+
+// ---- 標準化：把原始值映射成「積極度」0–100 --------------------------------------
+// 坑 1 的唯一替換點：正式版改成對歷史 N 年取百分位即可。
+function scoreOf(f) {
+  const span = f.cal_max - f.cal_min;
+  let pct = span === 0 ? 0.5 : (f.value - f.cal_min) / span;
+  pct = Math.max(0, Math.min(1, pct));
+  const aggressiveness = f.invert ? (1 - pct) : pct; // contrarian 方向已在 invert 反映
+  return aggressiveness * 100;
+}
+
+function lampColor(score) {
+  if (score >= 60) return "var(--green)";
+  if (score >= 40) return "var(--amber)";
+  return "var(--red)";
+}
+function verdictOf(score) {
+  if (score >= 60) return { word: "偏積極", advice: "估值/訊號偏便宜，可依計畫加重配置（仍分批）。" };
+  if (score >= 40) return { word: "中性", advice: "維持目標權重，按紀律再平衡，不追高不殺低。" };
+  return { word: "偏防禦", advice: "風險偏貴，控制曝險、保留銀彈、優先補落後配比。" };
+}
+
+function marketScore(mkt) {
+  const w = DATA.weights, factors = DATA.markets[mkt].factors;
+  let sum = 0, wsum = 0;
+  for (const dim of DATA.dimensions) {
+    const f = factors[dim];
+    if (!f) continue;
+    sum += scoreOf(f) * (w[dim] ?? 0);
+    wsum += (w[dim] ?? 0);
+  }
+  return wsum === 0 ? 50 : sum / wsum;
+}
+function overallScore() {
+  const a = DATA.allocation;
+  const us = marketScore("US"), tw = marketScore("TW");
+  const wsum = (a.US ?? 0) + (a.TW ?? 0);
+  return wsum === 0 ? (us + tw) / 2 : (us * a.US + tw * a.TW) / wsum;
+}
+
+// ---- 渲染 ---------------------------------------------------------------------
+function el(tag, cls, html) { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; }
+
+function renderMarkets() {
+  const root = document.getElementById("markets");
+  root.innerHTML = "";
+  for (const mkt of ["US", "TW"]) {
+    const m = DATA.markets[mkt];
+    const card = el("div", "card");
+    const sc = marketScore(mkt);
+    const v = verdictOf(sc);
+
+    const head = el("div", "card-head");
+    head.appendChild(el("div", "lamp sm", "")).style.color = lampColor(sc);
+    head.appendChild(el("h2", null, m.label));
+    const vbox = el("div", "v");
+    vbox.appendChild(el("b", null, v.word));
+    vbox.appendChild(el("small", null, "分數 " + sc.toFixed(0)));
+    head.appendChild(vbox);
+    card.appendChild(head);
+
+    for (const dim of DATA.dimensions) {
+      const f = m.factors[dim];
+      if (!f) continue;
+      const s = scoreOf(f);
+      const fc = el("div", "factor");
+
+      const frow = el("div", "frow");
+      const name = el("div", "fname", f.label + (f.stale ? '<span class="badge">⚠ 沿用舊值</span>' : ""));
+      frow.appendChild(name);
+
+      const inWrap = el("div", "finput");
+      const inp = el("input");
+      inp.type = "number"; inp.step = "any"; inp.value = f.value;
+      inp.addEventListener("input", () => { f.value = parseFloat(inp.value); if (!isNaN(f.value)) renderAll(); });
+      inWrap.appendChild(inp);
+      frow.appendChild(inWrap);
+      frow.appendChild(el("div", "unit", f.unit || ""));
+      fc.appendChild(frow);
+
+      const bar = el("div", "bar");
+      const fill = el("span"); fill.style.width = s.toFixed(0) + "%"; fill.style.background = lampColor(s);
+      bar.appendChild(fill); fc.appendChild(bar);
+
+      const meta = el("div", "fmeta");
+      meta.appendChild(el("div", "dir", f.direction || ""));
+      meta.appendChild(el("div", "pct", "積極度 " + s.toFixed(0)));
+      fc.appendChild(meta);
+
+      card.appendChild(fc);
+    }
+    root.appendChild(card);
+  }
+}
+
+function renderOverall() {
+  const sc = overallScore();
+  const v = verdictOf(sc);
+  document.getElementById("overallLamp").style.color = lampColor(sc);
+  document.getElementById("overallVerdict").textContent = v.word;
+  document.getElementById("overallAdvice").textContent = v.advice;
+  document.getElementById("overallScore").textContent =
+    "整體 " + sc.toFixed(1) + " ｜ 美股 " + marketScore("US").toFixed(1) + " ｜ 台股 " + marketScore("TW").toFixed(1);
+}
+
+function renderWeights() {
+  const root = document.getElementById("weights");
+  root.innerHTML = "";
+  for (const dim of DATA.dimensions) {
+    const row = el("div", "slider");
+    row.appendChild(el("label", null, DATA.dimension_labels[dim] || dim));
+    const r = el("input"); r.type = "range"; r.min = 0; r.max = 100; r.value = Math.round((DATA.weights[dim] ?? 0) * 100);
+    const val = el("div", "val", r.value + "%");
+    r.addEventListener("input", () => { DATA.weights[dim] = parseInt(r.value, 10) / 100; val.textContent = r.value + "%"; renderMarkets(); renderOverall(); });
+    row.appendChild(r); row.appendChild(val);
+    root.appendChild(row);
+  }
+}
+
+function renderAllocation() {
+  const root = document.getElementById("allocation");
+  root.innerHTML = "";
+  const mk = (key, label) => {
+    const row = el("div", "slider");
+    row.appendChild(el("label", null, label));
+    const r = el("input"); r.type = "range"; r.min = 0; r.max = 100; r.value = Math.round((DATA.allocation[key] ?? 0) * 100);
+    const val = el("div", "val", r.value + "%");
+    r.addEventListener("input", () => {
+      const v = parseInt(r.value, 10) / 100;
+      DATA.allocation[key] = v;
+      DATA.allocation[key === "US" ? "TW" : "US"] = 1 - v; // 兩者互補，總和 100%
+      val.textContent = r.value + "%";
+      renderAllocation(); renderOverall();
+    });
+    row.appendChild(r); row.appendChild(val);
+    root.appendChild(row);
+  };
+  mk("US", "美股配置"); mk("TW", "台股配置");
+}
+
+function renderAll() { renderMarkets(); renderOverall(); }
+
+document.getElementById("resetWeights").addEventListener("click", () => {
+  for (const dim of DATA.dimensions) DATA.weights[dim] = 1 / DATA.dimensions.length;
+  renderWeights(); renderMarkets(); renderOverall();
+});
+
+// ---- 載入 data.json，失敗則用 SEED -------------------------------------------
+async function boot() {
+  try {
+    const res = await fetch("data.json", { cache: "no-store" });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    DATA = await res.json();
+    document.getElementById("updated").textContent = "資料時間：" + (DATA.updated_at || "—");
+  } catch (e) {
+    DATA = JSON.parse(JSON.stringify(SEED));
+    // 標記所有因子為沿用舊值
+    for (const mkt of Object.keys(DATA.markets))
+      for (const dim of Object.keys(DATA.markets[mkt].factors))
+        DATA.markets[mkt].factors[dim].stale = true;
+    document.getElementById("updated").textContent = "資料時間：— ⚠ 無法讀取 data.json，使用內建範例值";
+  }
+  if (!DATA.dimensions) DATA.dimensions = SEED.dimensions;
+  if (!DATA.dimension_labels) DATA.dimension_labels = SEED.dimension_labels;
+  if (!DATA.weights) DATA.weights = { ...SEED.weights };
+  if (!DATA.allocation) DATA.allocation = { ...SEED.allocation };
+  renderWeights(); renderAllocation(); renderAll();
+}
+boot();
+</script>
+</body>
+</html>

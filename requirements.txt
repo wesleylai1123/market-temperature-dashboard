@@ -1,0 +1,2 @@
+# fetch_data.py 目前零外部相依（純標準函式庫）。
+# 之後若改用 FinMind / pandas 等套件，再在此處列出。

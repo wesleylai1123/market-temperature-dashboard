@@ -1,0 +1,40 @@
+name: Update dashboard data
+
+on:
+  schedule:
+    # UTC 22:30 ≈ 美股收盤後（美東 17:30 / 18:30 視日光節約）
+    - cron: "30 22 * * *"
+  workflow_dispatch: {} # 也可手動觸發
+
+permissions:
+  contents: write # git push data.json 需要寫入權限
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -s requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Fetch latest factor data
+        run: python fetch_data.py
+
+      - name: Commit updated data.json
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet -- data.json; then
+            echo "data.json 無變動，略過 commit"
+          else
+            git add data.json
+            git commit -m "chore: update dashboard data ($(date -u +%Y-%m-%dT%H:%MZ))"
+            git push
+          fi

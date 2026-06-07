@@ -1,0 +1,121 @@
+{
+  "updated_at": "2025-06-06T00:00:00Z",
+  "note": "種子數據，數值刻意貼近 2025/6/5 現況。GitHub Actions 會以 fetch_data.py 更新此檔。",
+  "dimensions": ["valuation", "sentiment", "cycle", "rate"],
+  "dimension_labels": {
+    "valuation": "估值",
+    "sentiment": "情緒/風險",
+    "cycle": "景氣",
+    "rate": "利率/資金"
+  },
+  "weights": {
+    "valuation": 0.25,
+    "sentiment": 0.25,
+    "cycle": 0.25,
+    "rate": 0.25
+  },
+  "allocation": {
+    "US": 0.5,
+    "TW": 0.5
+  },
+  "markets": {
+    "US": {
+      "label": "美股",
+      "factors": {
+        "valuation": {
+          "label": "估值 · Shiller CAPE",
+          "value": 36.0,
+          "unit": "x",
+          "cal_min": 10,
+          "cal_max": 40,
+          "invert": true,
+          "direction": "越貴 → 越防禦",
+          "source": "multpl.com (CAPE)",
+          "stale": false
+        },
+        "sentiment": {
+          "label": "情緒 · CNN 恐懼貪婪",
+          "value": 35.0,
+          "unit": "",
+          "cal_min": 0,
+          "cal_max": 100,
+          "invert": true,
+          "direction": "越貪婪 → 越防禦 / 恐懼 → 偏積極",
+          "source": "CNN Fear & Greed (非官方端點)",
+          "stale": false
+        },
+        "cycle": {
+          "label": "景氣 · 殖利率曲線 10Y–2Y",
+          "value": 0.25,
+          "unit": "%",
+          "cal_min": -1.0,
+          "cal_max": 2.5,
+          "invert": false,
+          "direction": "倒掛(負) → 防禦 / 正斜率 → 偏積極",
+          "source": "FRED T10Y2Y (免金鑰)",
+          "stale": false
+        },
+        "rate": {
+          "label": "利率 · 10年期殖利率",
+          "value": 4.55,
+          "unit": "%",
+          "cal_min": 1.0,
+          "cal_max": 5.5,
+          "invert": true,
+          "direction": "殖利率越高 → 越防禦",
+          "source": "FRED DGS10 (免金鑰)",
+          "stale": false
+        }
+      }
+    },
+    "TW": {
+      "label": "台股",
+      "factors": {
+        "valuation": {
+          "label": "估值 · 大盤本益比",
+          "value": 18.0,
+          "unit": "x",
+          "cal_min": 10,
+          "cal_max": 25,
+          "invert": true,
+          "direction": "越貴 → 越防禦",
+          "source": "TODO (建議接 FinMind)",
+          "stale": true
+        },
+        "sentiment": {
+          "label": "情緒 · 波動/融資餘額",
+          "value": 50.0,
+          "unit": "",
+          "cal_min": 0,
+          "cal_max": 100,
+          "invert": true,
+          "direction": "越貪婪 → 越防禦",
+          "source": "TODO (建議接 FinMind)",
+          "stale": true
+        },
+        "cycle": {
+          "label": "景氣 · 國發會景氣對策信號",
+          "value": 28.0,
+          "unit": "分",
+          "cal_min": 9,
+          "cal_max": 45,
+          "invert": true,
+          "direction": "紅燈(高分) → 防禦 / 藍燈(低分) → 逆向加碼",
+          "source": "TODO (建議接 FinMind / 國發會)",
+          "stale": true
+        },
+        "rate": {
+          "label": "資金 · 外資買賣超",
+          "value": -50.0,
+          "unit": "億",
+          "cal_min": -300,
+          "cal_max": 300,
+          "invert": false,
+          "direction": "外資買超 → 偏積極 / 賣超 → 防禦",
+          "source": "TWSE (單日 proxy)",
+          "stale": false
+        }
+      }
+    }
+  }
+}
