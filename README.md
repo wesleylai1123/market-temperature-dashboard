@@ -130,11 +130,26 @@ python3 fetch_data.py
 
 ---
 
+## 回測（驗證燈號有沒有用）
+
+`backtest/` 用 **backtrader** 把這套合成分數當「股票目標權重」做月度再平衡，對比買進持有，
+看歷史上能不能用較小回撤換取相近報酬。與儀表板共用 `data.json` 的因子設定，兩邊一致。
+
+```bash
+cd backtest && pip install -r requirements.txt
+python fetch_history.py --start 2010-01-01          # 抓因子+價格歷史(需網路)
+python run_backtest.py --market US --price data/us_price.csv --factors data/us_factors.csv
+python run_backtest.py --market TW --price data/tw_price.csv --factors data/tw_factors.csv
+```
+
+細節（策略、防 lookahead、資料源驗證狀態）見 [backtest/README.md](backtest/README.md)。
+
 ## 路線圖
 
-- [ ] 用 FinMind 補齊台股估值/情緒/景氣三因子
+- [x] 用 FinMind 接台股估值(2330 PER 代理)、情緒(融資餘額)
+- [x] backtrader 回測驗證燈號（台美雙市場，含 lookahead 防護）
+- [ ] 接台股景氣對策信號（國發會穩定端點）
 - [ ] `scoreOf()` 換成歷史百分位（取代線性映射）
-- [ ] 把訊號接上回測（vectorbt）驗證歷史有效性
 - [ ] 燈號翻轉/跨閾值時推 Telegram 通知
 
 ## 檔案結構
@@ -145,6 +160,11 @@ python3 fetch_data.py
 ├── fetch_data.py              # 抓各因子原始值 → data.json（零相依，含重試/瀏覽器標頭）
 ├── data.json                  # 種子數據 + 每因子的 desc/cal/invert/source，Actions 持續更新 value
 ├── requirements.txt
+├── backtest/                  # backtrader 回測（驗證燈號歷史有效性）
+│   ├── fetch_history.py       #   抓因子+價格歷史 → data/*.csv
+│   ├── scores.py             #   因子歷史 → 月頻目標權重（共用 data.json）
+│   ├── run_backtest.py       #   月度再平衡 vs 買進持有，印 KPI
+│   └── README.md
 └── .github/workflows/
     └── update-dashboard.yml   # 排程抓取並 commit 回 repo
 ```
