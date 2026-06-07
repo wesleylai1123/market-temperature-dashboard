@@ -64,12 +64,15 @@ def _get(url, headers=None, timeout=30, retries=3):
 # ---- 美股 ---------------------------------------------------------------------
 
 def us_cape():
-    """Shiller CAPE 月歷史（multpl by-month 表）。"""
+    """Shiller CAPE 月歷史（multpl by-month 表）。先去 HTML 標籤再抽 日期+數值。"""
     html = _get("https://www.multpl.com/shiller-pe/table/by-month")
-    pairs = re.findall(r"([A-Z][a-z]{2} \d{1,2}, \d{4})[^0-9]*?([0-9]{1,3}\.[0-9]+)", html)
+    text = re.sub(r"<[^>]+>", " ", html)  # 去標籤，留純文字
+    text = re.sub(r"\s+", " ", text)
+    pairs = re.findall(r"([A-Z][a-z]{2} \d{1,2}, \d{4})\s+([0-9]{1,3}\.[0-9]+)", text)
     rows = [(datetime.strptime(d, "%b %d, %Y"), float(v)) for d, v in pairs]
-    s = pd.Series({d: v for d, v in rows}).sort_index()
-    return s.rename("valuation")
+    if not rows:
+        raise ValueError("CAPE 表解析為 0 筆（版面可能變動）")
+    return pd.Series({d: v for d, v in rows}).sort_index().rename("valuation")
 
 
 def us_fear_greed():
@@ -169,6 +172,7 @@ def _try(label, fn):
 def build(start: str):
     DATA_DIR.mkdir(exist_ok=True)
     start_year = int(start[:4])
+    start_ts = pd.Timestamp(start)
 
     print("美股因子/價格:")
     us_cols = [s for s in (
@@ -180,13 +184,13 @@ def build(start: str):
         us_cols += [tre["cycle"], tre["rate"]]
     if us_cols:
         us = pd.concat(us_cols, axis=1).sort_index()
-        us = us[us.index >= start]
+        us = us[us.index >= start_ts]
         us.index.name = "date"
         us.to_csv(DATA_DIR / "us_factors.csv")
         print(f"  → us_factors.csv ({len(us)} 列, 欄位 {list(us.columns)})")
     sp = _try("SPY price", us_price)
     if sp is not None:
-        sp = sp[sp.index >= start]
+        sp = sp[sp.index >= start_ts]
         sp.to_frame().to_csv(DATA_DIR / "us_price.csv", index_label="date")
         print(f"  → us_price.csv ({len(sp)} 列)")
 
@@ -198,13 +202,13 @@ def build(start: str):
     ) if s is not None]
     if tw_cols:
         tw = pd.concat(tw_cols, axis=1).sort_index()
-        tw = tw[tw.index >= start]
+        tw = tw[tw.index >= start_ts]
         tw.index.name = "date"
         tw.to_csv(DATA_DIR / "tw_factors.csv")
         print(f"  → tw_factors.csv ({len(tw)} 列, 欄位 {list(tw.columns)})")
     tp = _try("0050 price", lambda: tw_price(start))
     if tp is not None:
-        tp = tp[tp.index >= start]
+        tp = tp[tp.index >= start_ts]
         tp.to_frame().to_csv(DATA_DIR / "tw_price.csv", index_label="date")
         print(f"  → tw_price.csv ({len(tp)} 列)")
 
