@@ -64,14 +64,22 @@ def _get(url, headers=None, timeout=30, retries=3):
 # ---- 美股 ---------------------------------------------------------------------
 
 def us_cape():
-    """Shiller CAPE 月歷史（multpl by-month 表）。先去 HTML 標籤再抽 日期+數值。"""
+    """Shiller CAPE 月歷史（multpl by-month 表）。先去 HTML 標籤(含 &nbsp;)再抽 日期+數值。"""
     html = _get("https://www.multpl.com/shiller-pe/table/by-month")
-    text = re.sub(r"<[^>]+>", " ", html)  # 去標籤，留純文字
+    text = re.sub(r"<[^>]+>", " ", html).replace("\xa0", " ").replace("&nbsp;", " ")
     text = re.sub(r"\s+", " ", text)
-    pairs = re.findall(r"([A-Z][a-z]{2} \d{1,2}, \d{4})\s+([0-9]{1,3}\.[0-9]+)", text)
-    rows = [(datetime.strptime(d, "%b %d, %Y"), float(v)) for d, v in pairs]
+    # 容忍 3 字母或全月名、逗號可有可無
+    pairs = re.findall(r"([A-Z][a-z]{2,8}\.? \d{1,2},? \d{4})\s+([0-9]{1,3}\.[0-9]+)", text)
+    rows = []
+    for d, v in pairs:
+        for fmt in ("%b %d, %Y", "%b %d %Y", "%B %d, %Y", "%B %d %Y"):
+            try:
+                rows.append((datetime.strptime(d, fmt), float(v)))
+                break
+            except ValueError:
+                continue
     if not rows:
-        raise ValueError("CAPE 表解析為 0 筆（版面可能變動）")
+        raise ValueError(f"CAPE 表解析為 0 筆（text 長度 {len(text)}；樣本: {text[:300]!r}）")
     return pd.Series({d: v for d, v in rows}).sort_index().rename("valuation")
 
 
@@ -105,13 +113,34 @@ def us_treasury(start_year):
     return out
 
 
-def us_price():
-    """SPY 日收盤（stooq，免金鑰）。"""
-    csv = _get("https://stooq.com/q/d/l/?s=spy.us&i=d")
+def _yahoo_price(symbol, rng="20y"):
+    """Yahoo Finance chart API（免金鑰 JSON）→ 日收盤(優先還原權值)。"""
+    url = (f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
+           f"?range={rng}&interval=1d")
+    res = json.loads(_get(url))["chart"]["result"][0]
+    idx = pd.to_datetime(res["timestamp"], unit="s").normalize()
+    ind = res["indicators"]
+    closes = (ind.get("adjclose", [{}])[0].get("adjclose")
+              or ind["quote"][0]["close"])
+    return pd.Series(closes, index=idx).dropna().rename("close")
+
+
+def _stooq_price(symbol):
     from io import StringIO
-    df = pd.read_csv(StringIO(csv))
+    df = pd.read_csv(StringIO(_get(f"https://stooq.com/q/d/l/?s={symbol}&i=d")))
+    if "Date" not in df.columns:
+        raise ValueError(f"stooq 回傳非預期內容（欄位 {list(df.columns)}，可能限流）")
     df["date"] = pd.to_datetime(df["Date"])
     return df.set_index("date")["Close"].rename("close")
+
+
+def us_price():
+    """SPY 日收盤：Yahoo chart 為主、stooq 備援（皆免金鑰）。"""
+    try:
+        return _yahoo_price("SPY")
+    except Exception as exc:  # noqa: BLE001
+        print(f"  · Yahoo SPY 失敗改用 stooq: {exc}")
+        return _stooq_price("spy.us")
 
 
 # ---- 台股（FinMind）-----------------------------------------------------------
