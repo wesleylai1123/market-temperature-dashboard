@@ -81,28 +81,28 @@
       "label": "台股",
       "factors": {
         "valuation": {
-          "label": "估值 · 大盤本益比",
-          "value": 18.0,
+          "label": "估值 · 台積電本益比(大盤代理)",
+          "value": 31.8,
           "unit": "x",
-          "cal_min": 10,
-          "cal_max": 25,
+          "cal_min": 12,
+          "cal_max": 32,
           "invert": true,
           "direction": "越貴 → 越防禦",
-          "desc": "台股加權指數本益比。歷史多在 10–25，越高越貴。⚠ 尚未接線，目前沿用範例值。",
-          "source": "TODO (建議接 FinMind)",
-          "stale": true
+          "desc": "以台積電(2330)本益比代理大盤估值（佔加權指數約三成的權值龍頭）。歷史多在 12–32，越高越貴。注意：非市值加權的整體大盤本益比，為龍頭代理。",
+          "source": "FinMind (2330 PER)",
+          "stale": false
         },
         "sentiment": {
-          "label": "情緒 · 波動/融資餘額",
-          "value": 50.0,
-          "unit": "",
-          "cal_min": 0,
-          "cal_max": 100,
+          "label": "情緒 · 融資餘額",
+          "value": 2500.0,
+          "unit": "億",
+          "cal_min": 1500,
+          "cal_max": 4000,
           "invert": true,
-          "direction": "越貪婪 → 越防禦",
-          "desc": "以波動率/融資餘額代理散戶情緒，0–100。融資高漲=過熱轉防禦。⚠ 尚未接線，目前沿用範例值。",
-          "source": "TODO (建議接 FinMind)",
-          "stale": true
+          "direction": "融資越高(過熱) → 越防禦",
+          "desc": "整體市場融資餘額金額(億元)，代理散戶槓桿情緒。融資高漲=過熱轉防禦、急縮=恐慌可逆向。cal 區間待實測校準。",
+          "source": "FinMind (整體融資)",
+          "stale": false
         },
         "cycle": {
           "label": "景氣 · 國發會景氣對策信號",

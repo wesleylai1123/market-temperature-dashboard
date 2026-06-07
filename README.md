@@ -53,15 +53,15 @@
 
 | 因子 | 數字是什麼 | 單位 | 校準區間 | 方向 | 來源 | 狀態 |
 | --- | --- | --- | --- | --- | --- | --- |
-| **估值 · 大盤本益比** | 台股加權指數本益比，歷史多在 10–25 | x | 10–25 | 越貴→防禦 | TODO（建議 FinMind） | ⛏ 未接線 |
-| **情緒 · 波動/融資餘額** | 以波動率/融資餘額代理散戶情緒 | — | 0–100 | 貪婪→防禦 | TODO（建議 FinMind） | ⛏ 未接線 |
-| **景氣 · 國發會景氣對策信號** | 綜合分數 9–45，藍燈(低)逆向加碼、紅燈(高)轉防禦；台灣特有 | 分 | 9–45 | 紅燈→防禦 / 藍燈→加碼 | TODO（FinMind/國發會） | ⛏ 未接線 |
+| **估值 · 台積電本益比(大盤代理)** | 台積電(2330)本益比代理大盤估值（佔指數約三成的權值龍頭，非市值加權整體 P/E） | x | 12–32 | 越貴→防禦 | FinMind `TaiwanStockPER` data_id=2330 | ✅ |
+| **情緒 · 融資餘額** | 整體市場融資餘額金額(億元)，代理散戶槓桿情緒 | 億 | 1500–4000 | 越高(過熱)→防禦 | FinMind `TaiwanStockTotalMarginPurchaseShortSale` | ✅ |
+| **景氣 · 國發會景氣對策信號** | 綜合分數 9–45，藍燈(低)逆向加碼、紅燈(高)轉防禦；台灣特有 | 分 | 9–45 | 紅燈→防禦 / 藍燈→加碼 | TODO（FinMind 無，國發會端點待確認） | ⛏ 未接線 |
 | **資金 · 外資買賣超** | 外資當日買賣超金額，買超偏積極、賣超轉防禦（單日 proxy） | 億 | -300–300 | 買超→積極 | TWSE | ✅ |
 
 > 美股四項已接好（殖利率改用美國財政部 .gov 免金鑰最穩，原 FRED 從 GitHub runner 會 timeout；CAPE、恐懼貪婪是解析非官方來源，較脆弱但已包重試）。
-> 台股目前只有外資接上，其餘三項為 `NotImplementedError`，抓取時自動沿用舊值並標 stale。
-> **補齊台股最快的路是接 [FinMind](https://finmindtrade.com/)（免費 token）**，填上 `fetch_data.py` 的
-> `fetch_tw_valuation / fetch_tw_sentiment / fetch_tw_cycle` 三個函式即可。
+> 台股四項已接三項：外資(TWSE)、估值(FinMind 2330 PER 代理)、情緒(FinMind 整體融資)。
+> 只剩 **景氣對策信號** 待接（FinMind 無此資料集、國發會穩定端點待確認），目前沿用舊值並標 stale。
+> [FinMind](https://finmindtrade.com/) 無 token 也能抓（限流較低）；設 `FINMIND_TOKEN` secret 可提高限額。
 
 ---
 
@@ -105,6 +105,7 @@ python3 fetch_data.py
 
 - **Workflow 寫入權限**：Settings → Actions → General → Workflow permissions → **Read and write**（否則排程跑完無法 push）。
   *本 repo 已透過 API 設定為 write，無需再手動點。*
+- **（可選）FinMind token**：Settings → Secrets and variables → Actions → New repository secret，名稱 `FINMIND_TOKEN`。未設則走匿名（限流較低，每日跑足夠）。
 
 ### 三種觸發方式
 

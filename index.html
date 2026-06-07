@@ -165,8 +165,8 @@ const SEED = {
       rate:      { label: "利率 · 10年期殖利率", value: 4.55, unit: "%", cal_min: 1, cal_max: 5.5, invert: true, direction: "越高 → 越防禦", source: "FRED DGS10", desc: "美10年期公債殖利率(%)，無風險利率錨，越高壓抑高估值股。", stale: true },
     }},
     TW: { label: "台股", factors: {
-      valuation: { label: "估值 · 大盤本益比", value: 18, unit: "x", cal_min: 10, cal_max: 25, invert: true, direction: "越貴 → 越防禦", source: "TODO (FinMind)", desc: "台股加權指數本益比，歷史多在 10–25。⚠ 尚未接線。", stale: true },
-      sentiment: { label: "情緒 · 波動/融資餘額", value: 50, unit: "", cal_min: 0, cal_max: 100, invert: true, direction: "貪婪 → 防禦", source: "TODO (FinMind)", desc: "以波動/融資餘額代理散戶情緒。⚠ 尚未接線。", stale: true },
+      valuation: { label: "估值 · 台積電本益比(大盤代理)", value: 31.8, unit: "x", cal_min: 12, cal_max: 32, invert: true, direction: "越貴 → 越防禦", source: "FinMind (2330 PER)", desc: "台積電(2330)本益比代理大盤估值（權值龍頭約佔指數三成）。", stale: true },
+      sentiment: { label: "情緒 · 融資餘額", value: 2500, unit: "億", cal_min: 1500, cal_max: 4000, invert: true, direction: "融資高(過熱) → 防禦", source: "FinMind (整體融資)", desc: "整體市場融資餘額(億元)，代理散戶槓桿情緒，過熱轉防禦。", stale: true },
       cycle:     { label: "景氣 · 景氣對策信號", value: 28, unit: "分", cal_min: 9, cal_max: 45, invert: true, direction: "紅燈 → 防禦 / 藍燈 → 加碼", source: "TODO (國發會)", desc: "國發會景氣對策信號 9–45，藍燈逆向加碼、紅燈轉防禦。⚠ 尚未接線。", stale: true },
       rate:      { label: "資金 · 外資買賣超", value: -50, unit: "億", cal_min: -300, cal_max: 300, invert: false, direction: "買超 → 積極", source: "TWSE", desc: "外資當日買賣超(億元)，買超偏積極、賣超轉防禦。單日 proxy。", stale: true },
     }},

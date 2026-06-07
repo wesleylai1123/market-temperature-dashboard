@@ -25,6 +25,8 @@ jobs:
           if [ -s requirements.txt ]; then pip install -r requirements.txt; fi
 
       - name: Fetch latest factor data
+        env:
+          FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }} # 可選；未設則走 FinMind 匿名(限流較低)
         run: python fetch_data.py
 
       - name: Commit updated data.json

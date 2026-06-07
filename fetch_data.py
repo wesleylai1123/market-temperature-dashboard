@@ -20,19 +20,24 @@
                           (原用 FRED fredgraph.csv，從 GitHub runner 會 timeout，改用財政部)
 台股：
   資金   外資買賣超        TWSE 開放資料（單日 proxy）
-  估值/情緒/景氣           尚未實作 → NotImplementedError → 沿用舊值
-                          補齊最快的路：接 FinMind（免費 token）。
+  估值   大盤本益比代理     FinMind TaiwanStockPER, data_id=2330（台積電權值龍頭）
+  情緒   融資餘額          FinMind TaiwanStockTotalMarginPurchaseShortSale
+  景氣   景氣對策信號       尚未接線（FinMind 無、國發會端點待確認）→ 沿用舊值
+                          FinMind 無 token 也能抓，設 FINMIND_TOKEN 可提高限額。
 """
 
 import json
+import os
 import re
 import ssl
 import time
+import urllib.parse
 import urllib.request
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 DATA_PATH = Path(__file__).with_name("data.json")
+FINMIND_URL = "https://api.finmindtrade.com/api/v4/data"
 _CTX = ssl.create_default_context()
 
 # 用接近真實瀏覽器的標頭，避免 CNN 之類來源以 403/418 擋掉機器人。
@@ -151,16 +156,52 @@ def fetch_tw_foreign_net():
     return round(total / 1e8, 1)  # 元 → 億元
 
 
+def _finmind(dataset, data_id=None, days=30):
+    """FinMind API（無 token 也能用，限流較低；有 FINMIND_TOKEN 走 Bearer）。
+
+    回傳 data 陣列（依日期升冪，最後一筆=最新）。
+    """
+    end = datetime.now(timezone.utc).astimezone()
+    start = end - timedelta(days=days)
+    params = {
+        "dataset": dataset,
+        "start_date": start.strftime("%Y-%m-%d"),
+        "end_date": end.strftime("%Y-%m-%d"),
+    }
+    if data_id:
+        params["data_id"] = data_id
+    token = os.getenv("FINMIND_TOKEN")
+    headers = {"Authorization": "Bearer " + token} if token else None
+    obj = json.loads(_get(FINMIND_URL + "?" + urllib.parse.urlencode(params), headers=headers))
+    if obj.get("status") != 200:
+        raise ValueError("FinMind: " + str(obj.get("msg")))
+    return obj.get("data", [])
+
+
 def fetch_tw_valuation():
-    raise NotImplementedError("台股大盤本益比尚未接線（建議用 FinMind）")
+    """大盤估值代理：台積電(2330)本益比（佔加權指數約三成的權值龍頭）。"""
+    rows = _finmind("TaiwanStockPER", data_id="2330")
+    rows = [r for r in rows if r.get("PER") not in (None, "", 0)]
+    if not rows:
+        raise ValueError("FinMind PER 無資料")
+    return round(float(rows[-1]["PER"]), 2)
 
 
 def fetch_tw_sentiment():
-    raise NotImplementedError("台股情緒尚未接線（建議用 FinMind 融資餘額/波動）")
+    """情緒代理：整體市場融資餘額金額(億元)。融資高漲=散戶過熱→防禦。"""
+    rows = _finmind("TaiwanStockTotalMarginPurchaseShortSale")
+    money = [r for r in rows if r.get("name") == "MarginPurchaseMoney"]
+    if not money:
+        raise ValueError("FinMind 無融資金額資料")
+    bal = float(money[-1]["TodayBalance"])
+    # TodayBalance 單位為千元 → 億元（1億 = 100,000 千元）。實測校準 cal 區間。
+    return round(bal / 1e5, 1)
 
 
 def fetch_tw_cycle():
-    raise NotImplementedError("國發會景氣對策信號尚未接線（建議用 FinMind / 國發會）")
+    # 國發會景氣對策信號：FinMind 無此資料集，國發會/data.gov.tw 端點尚未確認可用，
+    # 暫保留沿用舊值。補上時填這裡（月頻、月底發布、會事後修正，回測注意 lookahead）。
+    raise NotImplementedError("國發會景氣對策信號尚未接線（待確認穩定端點）")
 
 
 # ---- 主流程 -------------------------------------------------------------------
