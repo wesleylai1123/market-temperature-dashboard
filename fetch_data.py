@@ -194,8 +194,7 @@ def fetch_tw_sentiment():
     if not money:
         raise ValueError("FinMind 無融資金額資料")
     bal = float(money[-1]["TodayBalance"])
-    # TodayBalance 單位為千元 → 億元（1億 = 100,000 千元）。實測校準 cal 區間。
-    return round(bal / 1e5, 1)
+    return round(bal / 1e8, 1)  # 元 → 億元（實測 TodayBalance 單位為元）
 
 
 def fetch_tw_cycle():

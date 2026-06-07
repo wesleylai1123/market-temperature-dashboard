@@ -94,13 +94,13 @@
         },
         "sentiment": {
           "label": "情緒 · 融資餘額",
-          "value": 5666492.7,
+          "value": 5666.5,
           "unit": "億",
-          "cal_min": 1500,
-          "cal_max": 4000,
+          "cal_min": 2000,
+          "cal_max": 8000,
           "invert": true,
           "direction": "融資越高(過熱) → 越防禦",
-          "desc": "整體市場融資餘額金額(億元)，代理散戶槓桿情緒。融資高漲=過熱轉防禦、急縮=恐慌可逆向。cal 區間待實測校準。",
+          "desc": "整體市場融資餘額金額(億元)，代理散戶槓桿情緒。融資高漲=過熱轉防禦、急縮=恐慌可逆向。cal 區間為實測量級placeholder，正式版改百分位。",
           "source": "FinMind (整體融資)",
           "stale": false
         },
