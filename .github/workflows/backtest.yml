@@ -1,0 +1,61 @@
+name: Backtest (verify signal)
+
+on:
+  workflow_dispatch:
+    inputs:
+      start:
+        description: "歷史起始日 YYYY-MM-DD"
+        default: "2010-01-01"
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backtest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Fetch factor & price history
+        env:
+          FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }} # 可選；提高 FinMind 限額
+        run: python fetch_history.py --start "${{ inputs.start }}"
+
+      - name: Run backtests (US + TW) → step summary
+        run: |
+          echo "## 回測結果（市場溫度分數 vs 買進持有）" >> "$GITHUB_STEP_SUMMARY"
+          for mkt in US TW; do
+            lower=$(echo "$mkt" | tr 'A-Z' 'a-z')
+            price="data/${lower}_price.csv"
+            factors="data/${lower}_factors.csv"
+            echo "### $mkt" >> "$GITHUB_STEP_SUMMARY"
+            if [ -f "$price" ] && [ -f "$factors" ]; then
+              echo '```' >> "$GITHUB_STEP_SUMMARY"
+              python run_backtest.py --market "$mkt" --price "$price" --factors "$factors" \
+                | tee -a "$GITHUB_STEP_SUMMARY"
+              echo '```' >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "⚠ 缺 $price 或 $factors（抓取該市場資料失敗，見上一步 log）" >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done
+
+      - name: Upload data CSVs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backtest-data
+          path: backtest/data/*.csv
+          if-no-files-found: warn
