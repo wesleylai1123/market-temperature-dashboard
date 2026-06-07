@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-06-07T01:52:12Z",
+  "updated_at": "2026-06-07T01:55:21Z",
   "note": "種子數據。GitHub Actions 會以 fetch_data.py 更新 value/stale/updated_at；其餘欄位(desc/cal/invert…)由人維護。",
   "dimensions": [
     "valuation",
@@ -53,7 +53,7 @@
         },
         "cycle": {
           "label": "景氣 · 殖利率曲線 10Y–2Y",
-          "value": 0.25,
+          "value": 0.38,
           "unit": "%",
           "cal_min": -1.0,
           "cal_max": 2.5,
@@ -61,7 +61,7 @@
           "direction": "倒掛(負) → 防禦 / 正斜率 → 偏積極",
           "desc": "10年期減2年期公債殖利率(%)。正值=正常景氣擴張；負值(倒掛)是經典衰退領先訊號，須轉防禦。",
           "source": "US Treasury (免金鑰)",
-          "stale": true
+          "stale": false
         },
         "rate": {
           "label": "利率 · 10年期殖利率",
@@ -73,7 +73,7 @@
           "direction": "殖利率越高 → 越防禦",
           "desc": "美國10年期公債殖利率(%)，無風險利率的錨。越高對高估值科技股壓力越大、折現率上升不利股市。",
           "source": "US Treasury (免金鑰)",
-          "stale": true
+          "stale": false
         }
       }
     },
