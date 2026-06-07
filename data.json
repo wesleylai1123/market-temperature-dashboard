@@ -1,12 +1,7 @@
 {
   "updated_at": "2026-06-07T00:37:30Z",
-  "note": "種子數據，數值刻意貼近 2025/6/5 現況。GitHub Actions 會以 fetch_data.py 更新此檔。",
-  "dimensions": [
-    "valuation",
-    "sentiment",
-    "cycle",
-    "rate"
-  ],
+  "note": "種子數據。GitHub Actions 會以 fetch_data.py 更新 value/stale/updated_at；其餘欄位(desc/cal/invert…)由人維護。",
+  "dimensions": ["valuation", "sentiment", "cycle", "rate"],
   "dimension_labels": {
     "valuation": "估值",
     "sentiment": "情緒/風險",
@@ -35,6 +30,7 @@
           "cal_max": 40,
           "invert": true,
           "direction": "越貴 → 越防禦",
+          "desc": "席勒本益比（10年通膨調整 EPS）。衡量大盤現在貴不貴，與長期預期報酬負相關。歷史多落在 10–40，越高代表越貴、未來報酬越低。",
           "source": "multpl.com (CAPE)",
           "stale": false
         },
@@ -46,6 +42,7 @@
           "cal_max": 100,
           "invert": true,
           "direction": "越貪婪 → 越防禦 / 恐懼 → 偏積極",
+          "desc": "CNN Fear & Greed 指數 0–100。0=極度恐懼、100=極度貪婪。逆向操作：別人恐懼時偏積極、貪婪時轉防禦。",
           "source": "CNN Fear & Greed (非官方端點)",
           "stale": true
         },
@@ -57,6 +54,7 @@
           "cal_max": 2.5,
           "invert": false,
           "direction": "倒掛(負) → 防禦 / 正斜率 → 偏積極",
+          "desc": "10年期減2年期公債殖利率(%)。正值=正常景氣擴張；負值(倒掛)是經典衰退領先訊號，須轉防禦。",
           "source": "FRED T10Y2Y (免金鑰)",
           "stale": true
         },
@@ -68,6 +66,7 @@
           "cal_max": 5.5,
           "invert": true,
           "direction": "殖利率越高 → 越防禦",
+          "desc": "美國10年期公債殖利率(%)，無風險利率的錨。越高對高估值科技股壓力越大、折現率上升不利股市。",
           "source": "FRED DGS10 (免金鑰)",
           "stale": true
         }
@@ -84,6 +83,7 @@
           "cal_max": 25,
           "invert": true,
           "direction": "越貴 → 越防禦",
+          "desc": "台股加權指數本益比。歷史多在 10–25，越高越貴。⚠ 尚未接線，目前沿用範例值。",
           "source": "TODO (建議接 FinMind)",
           "stale": true
         },
@@ -95,6 +95,7 @@
           "cal_max": 100,
           "invert": true,
           "direction": "越貪婪 → 越防禦",
+          "desc": "以波動率/融資餘額代理散戶情緒，0–100。融資高漲=過熱轉防禦。⚠ 尚未接線，目前沿用範例值。",
           "source": "TODO (建議接 FinMind)",
           "stale": true
         },
@@ -106,6 +107,7 @@
           "cal_max": 45,
           "invert": true,
           "direction": "紅燈(高分) → 防禦 / 藍燈(低分) → 逆向加碼",
+          "desc": "國發會景氣對策信號綜合分數 9–45。藍燈(低)=景氣谷底可逆向加碼；紅燈(高)=過熱轉防禦。台灣特有、散戶實用。⚠ 尚未接線。",
           "source": "TODO (建議接 FinMind / 國發會)",
           "stale": true
         },
@@ -117,6 +119,7 @@
           "cal_max": 300,
           "invert": false,
           "direction": "外資買超 → 偏積極 / 賣超 → 防禦",
+          "desc": "外資當日買賣超金額(億元)。買超=資金流入偏積極、賣超=流出轉防禦。目前為單日 proxy，非交易日無資料會沿用舊值。",
           "source": "TWSE (單日 proxy)",
           "stale": true
         }

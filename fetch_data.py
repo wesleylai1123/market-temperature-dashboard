@@ -26,19 +26,41 @@
 import json
 import re
 import ssl
+import time
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
 DATA_PATH = Path(__file__).with_name("data.json")
-UA = "Mozilla/5.0 (market-temperature-dashboard fetch_data.py)"
 _CTX = ssl.create_default_context()
 
+# 用接近真實瀏覽器的標頭，避免 CNN 之類來源以 403/418 擋掉機器人。
+BROWSER_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    ),
+    "Accept": "text/html,application/json,application/xhtml+xml,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+}
 
-def _get(url, timeout=20):
-    req = urllib.request.Request(url, headers={"User-Agent": UA})
-    with urllib.request.urlopen(req, timeout=timeout, context=_CTX) as resp:
-        return resp.read().decode("utf-8", "replace")
+
+def _get(url, timeout=30, retries=3, headers=None):
+    """抓取 URL，帶瀏覽器標頭 + 重試（指數退避），降低偶發 timeout/擋爬。"""
+    merged = dict(BROWSER_HEADERS)
+    if headers:
+        merged.update(headers)
+    last_exc = None
+    for attempt in range(retries):
+        try:
+            req = urllib.request.Request(url, headers=merged)
+            with urllib.request.urlopen(req, timeout=timeout, context=_CTX) as resp:
+                return resp.read().decode("utf-8", "replace")
+        except Exception as exc:  # noqa: BLE001 — 重試後仍失敗才往外丟
+            last_exc = exc
+            if attempt < retries - 1:
+                time.sleep(1.5 * (attempt + 1))
+    raise last_exc
 
 
 def _last_csv_value(csv_text):
@@ -65,10 +87,13 @@ def fetch_us_cape():
 
 
 def fetch_us_fear_greed():
-    """CNN 恐懼貪婪指數 — 非官方資料端點。"""
-    raw = _get("https://production.dataviz.cnn.io/index/fearandgreed/graphdata")
+    """CNN 恐懼貪婪指數 — 非官方端點，需帶 Referer 否則回 418。"""
+    raw = _get(
+        "https://production.dataviz.cnn.io/index/fearandgreed/graphdata",
+        headers={"Referer": "https://edition.cnn.com/markets/fear-and-greed"},
+    )
     obj = json.loads(raw)
-    return float(obj["fear_and_greed"]["score"])
+    return round(float(obj["fear_and_greed"]["score"]), 1)
 
 
 def fetch_fred(series_id):

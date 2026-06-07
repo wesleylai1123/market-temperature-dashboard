@@ -70,9 +70,18 @@
   .unit { color: var(--muted); font-size: 11px; width: 22px; }
   .bar { height: 8px; border-radius: 999px; background: #0e1422; overflow: hidden; margin-top: 8px; border: 1px solid var(--line); }
   .bar > span { display: block; height: 100%; border-radius: 999px; transition: width .25s ease, background .25s ease; }
-  .fmeta { display: flex; justify-content: space-between; margin-top: 5px; }
+  .fval { font-variant-numeric: tabular-nums; font-size: 16px; font-weight: 700; white-space: nowrap; }
+  .fval .u { font-size: 11px; color: var(--muted); font-weight: 400; margin-left: 2px; }
+  .desc-full { color: var(--muted); font-size: 11px; margin-top: 6px; line-height: 1.5; }
+  .fmeta { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 6px; }
   .dir { color: var(--muted); font-size: 11px; }
-  .pct { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .src { color: #5e6b80; font-size: 10px; }
+  .pct { font-size: 11px; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  details.edit { margin-top: 6px; }
+  details.edit > summary { color: #5e6b80; font-size: 10px; cursor: pointer; list-style: none; }
+  details.edit > summary:hover { color: var(--accent); }
+  details.edit > summary::-webkit-details-marker { display: none; }
+  details.edit .finput { margin-top: 6px; }
 
   .controls { margin-top: 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
   @media (max-width: 760px) { .controls { grid-template-columns: 1fr; } }
@@ -150,16 +159,16 @@ const SEED = {
   allocation: { US: 0.5, TW: 0.5 },
   markets: {
     US: { label: "美股", factors: {
-      valuation: { label: "估值 · Shiller CAPE", value: 36, unit: "x", cal_min: 10, cal_max: 40, invert: true, direction: "越貴 → 越防禦", stale: true },
-      sentiment: { label: "情緒 · CNN 恐懼貪婪", value: 35, unit: "", cal_min: 0, cal_max: 100, invert: true, direction: "貪婪 → 防禦 / 恐懼 → 積極", stale: true },
-      cycle:     { label: "景氣 · 殖利率曲線 10Y–2Y", value: 0.25, unit: "%", cal_min: -1, cal_max: 2.5, invert: false, direction: "倒掛 → 防禦", stale: true },
-      rate:      { label: "利率 · 10年期殖利率", value: 4.55, unit: "%", cal_min: 1, cal_max: 5.5, invert: true, direction: "越高 → 越防禦", stale: true },
+      valuation: { label: "估值 · Shiller CAPE", value: 41.57, unit: "x", cal_min: 10, cal_max: 40, invert: true, direction: "越貴 → 越防禦", source: "multpl.com", desc: "席勒本益比（10年通膨調整 EPS），衡量大盤貴不貴，與長期報酬負相關。", stale: true },
+      sentiment: { label: "情緒 · CNN 恐懼貪婪", value: 35, unit: "", cal_min: 0, cal_max: 100, invert: true, direction: "貪婪 → 防禦 / 恐懼 → 積極", source: "CNN Fear & Greed", desc: "0–100，0=極度恐懼、100=極度貪婪。逆向：恐懼偏積極、貪婪轉防禦。", stale: true },
+      cycle:     { label: "景氣 · 殖利率曲線 10Y–2Y", value: 0.25, unit: "%", cal_min: -1, cal_max: 2.5, invert: false, direction: "倒掛 → 防禦", source: "FRED T10Y2Y", desc: "10年減2年殖利率(%)。負值(倒掛)是經典衰退領先訊號。", stale: true },
+      rate:      { label: "利率 · 10年期殖利率", value: 4.55, unit: "%", cal_min: 1, cal_max: 5.5, invert: true, direction: "越高 → 越防禦", source: "FRED DGS10", desc: "美10年期公債殖利率(%)，無風險利率錨，越高壓抑高估值股。", stale: true },
     }},
     TW: { label: "台股", factors: {
-      valuation: { label: "估值 · 大盤本益比", value: 18, unit: "x", cal_min: 10, cal_max: 25, invert: true, direction: "越貴 → 越防禦", stale: true },
-      sentiment: { label: "情緒 · 波動/融資餘額", value: 50, unit: "", cal_min: 0, cal_max: 100, invert: true, direction: "貪婪 → 防禦", stale: true },
-      cycle:     { label: "景氣 · 景氣對策信號", value: 28, unit: "分", cal_min: 9, cal_max: 45, invert: true, direction: "紅燈 → 防禦 / 藍燈 → 加碼", stale: true },
-      rate:      { label: "資金 · 外資買賣超", value: -50, unit: "億", cal_min: -300, cal_max: 300, invert: false, direction: "買超 → 積極", stale: true },
+      valuation: { label: "估值 · 大盤本益比", value: 18, unit: "x", cal_min: 10, cal_max: 25, invert: true, direction: "越貴 → 越防禦", source: "TODO (FinMind)", desc: "台股加權指數本益比，歷史多在 10–25。⚠ 尚未接線。", stale: true },
+      sentiment: { label: "情緒 · 波動/融資餘額", value: 50, unit: "", cal_min: 0, cal_max: 100, invert: true, direction: "貪婪 → 防禦", source: "TODO (FinMind)", desc: "以波動/融資餘額代理散戶情緒。⚠ 尚未接線。", stale: true },
+      cycle:     { label: "景氣 · 景氣對策信號", value: 28, unit: "分", cal_min: 9, cal_max: 45, invert: true, direction: "紅燈 → 防禦 / 藍燈 → 加碼", source: "TODO (國發會)", desc: "國發會景氣對策信號 9–45，藍燈逆向加碼、紅燈轉防禦。⚠ 尚未接線。", stale: true },
+      rate:      { label: "資金 · 外資買賣超", value: -50, unit: "億", cal_min: -300, cal_max: 300, invert: false, direction: "買超 → 積極", source: "TWSE", desc: "外資當日買賣超(億元)，買超偏積極、賣超轉防禦。單日 proxy。", stale: true },
     }},
   },
 };
@@ -232,27 +241,40 @@ function renderMarkets() {
       const s = scoreOf(f);
       const fc = el("div", "factor");
 
+      // 第一行：名稱（+沿用舊值徽章） ｜ 實際數值大字
       const frow = el("div", "frow");
-      const name = el("div", "fname", f.label + (f.stale ? '<span class="badge">⚠ 沿用舊值</span>' : ""));
-      frow.appendChild(name);
+      frow.appendChild(el("div", "fname", f.label + (f.stale ? '<span class="badge">⚠ 沿用舊值</span>' : "")));
+      const valStr = (typeof f.value === "number" ? f.value : Number(f.value)).toLocaleString("en-US", { maximumFractionDigits: 2 });
+      frow.appendChild(el("div", "fval", valStr + (f.unit ? '<span class="u">' + f.unit + "</span>" : "")));
+      fc.appendChild(frow);
 
+      // 積極度 bar
+      const bar = el("div", "bar");
+      const fill = el("span"); fill.style.width = s.toFixed(0) + "%"; fill.style.background = lampColor(s);
+      bar.appendChild(fill); fc.appendChild(bar);
+
+      // 方向 / 來源 ｜ 積極度分數
+      const meta = el("div", "fmeta");
+      const left = el("div");
+      left.appendChild(el("div", "dir", f.direction || ""));
+      if (f.source) left.appendChild(el("div", "src", "來源：" + f.source));
+      meta.appendChild(left);
+      meta.appendChild(el("div", "pct", "積極度 " + s.toFixed(0)));
+      fc.appendChild(meta);
+
+      // 說明
+      if (f.desc) fc.appendChild(el("div", "desc-full", f.desc));
+
+      // 試算（what-if）：改數字即時重算，預設收合
+      const det = el("details", "edit");
+      det.appendChild(el("summary", null, "▸ 試算這個數字"));
       const inWrap = el("div", "finput");
       const inp = el("input");
       inp.type = "number"; inp.step = "any"; inp.value = f.value;
       inp.addEventListener("input", () => { f.value = parseFloat(inp.value); if (!isNaN(f.value)) renderAll(); });
       inWrap.appendChild(inp);
-      frow.appendChild(inWrap);
-      frow.appendChild(el("div", "unit", f.unit || ""));
-      fc.appendChild(frow);
-
-      const bar = el("div", "bar");
-      const fill = el("span"); fill.style.width = s.toFixed(0) + "%"; fill.style.background = lampColor(s);
-      bar.appendChild(fill); fc.appendChild(bar);
-
-      const meta = el("div", "fmeta");
-      meta.appendChild(el("div", "dir", f.direction || ""));
-      meta.appendChild(el("div", "pct", "積極度 " + s.toFixed(0)));
-      fc.appendChild(meta);
+      det.appendChild(inWrap);
+      fc.appendChild(det);
 
       card.appendChild(fc);
     }

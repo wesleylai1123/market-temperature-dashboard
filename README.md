@@ -4,48 +4,130 @@
 
 > ⚠️ 本工具僅供研究與紀律參考，**不是投資建議**，最終判斷請自己拍板。
 
+---
+
+## 目錄
+
+- [它長怎樣](#它長怎樣)
+- [數據字典（每一項數字的意義）](#數據字典每一項數字的意義)
+- [分數怎麼算（計分邏輯）](#分數怎麼算計分邏輯)
+- [本機執行](#本機執行)
+- [GitHub Actions 自動更新（操作設定）](#github-actions-自動更新操作設定)
+- [兩個工程上的坑](#兩個工程上的坑決定分數卡可不可信)
+- [路線圖 / 檔案結構](#路線圖)
+
+---
+
 ## 它長怎樣
 
-- **總結燈號** + **台美雙燈** + 每個因子的**積極度 bar**
-- 可即時編輯任何因子數值、拖曳**權重滑桿**與**台美配置滑桿**看彙總怎麼變
-- 讀 `data.json`；抓不到就用內建範例值並標「⚠ 沿用舊值」，**永不開天窗**
+- **總結燈號** + **台美雙燈** + 每個因子的**實際數值（大字呈現）** + 積極度 bar
+- 每個因子都附**資料說明**與**資料來源**；抓不到的會標「⚠ 沿用舊值」
+- 展開「▸ 試算這個數字」可手動改值做 what-if；拖曳**權重滑桿**與**台美配置滑桿**看彙總即時變化
+- 讀 `data.json`；任何欄位抓不到就沿用上次值，**永不開天窗**
 
-## 四個因子（台美各一套，等權重起步）
+燈號門檻（積極度 0–100，數字越高越偏積極/逆向加碼）：
 
-| 維度 | 美股 | 台股 | 方向（contrarian） |
-| --- | --- | --- | --- |
-| 估值 | Shiller CAPE ✅ | 大盤本益比 ⛏ TODO | 越貴 → 越防禦 |
-| 情緒/風險 | CNN 恐懼貪婪 ✅ | 波動/融資餘額 ⛏ TODO | 貪婪 → 防禦；恐懼 → 偏積極 |
-| 景氣 | 殖利率曲線 10Y–2Y ✅ | 國發會景氣對策信號 ⛏ TODO | 倒掛/紅燈 → 防禦；藍燈 → 逆向加碼 |
-| 利率/資金 | 10年期殖利率 ✅ | 外資買賣超 ✅(單日 proxy) | 殖利率高/外資賣超 → 防禦 |
+| 積極度 | 燈號 | 解讀 |
+| --- | --- | --- |
+| ≥ 60 | 🟢 偏積極 | 估值/訊號偏便宜，可依計畫加重配置（仍分批） |
+| 40–60 | 🟡 中性 | 維持目標權重，按紀律再平衡 |
+| < 40 | 🔴 偏防禦 | 風險偏貴，控制曝險、保留銀彈 |
 
-美股四項已接好（FRED 免金鑰最穩；CAPE、恐懼貪婪是解析非官方來源，較脆弱但已包 try）。台股目前只有外資接上，其餘三項為 `NotImplementedError`，抓取時會自動沿用舊值。**補齊台股最快的路是接 [FinMind](https://finmindtrade.com/)（免費 token）**，填上 `fetch_tw_valuation / fetch_tw_sentiment / fetch_tw_cycle` 即可。
+---
+
+## 數據字典（每一項數字的意義）
+
+> 「方向」採**逆向(contrarian)**思維：貴/貪婪/過熱 → 防禦；便宜/恐懼/谷底 → 積極。
+> `cal_min/cal_max` 是把原始值映射成積極度的校準區間（見[計分邏輯](#分數怎麼算計分邏輯)）。
+
+### 美股
+
+| 因子 | 數字是什麼 | 單位 | 校準區間 | 方向 | 來源 | 狀態 |
+| --- | --- | --- | --- | --- | --- | --- |
+| **估值 · Shiller CAPE** | 席勒本益比（10年通膨調整 EPS），衡量大盤貴不貴，與長期預期報酬負相關 | x | 10–40 | 越貴→防禦 | multpl.com | ✅ |
+| **情緒 · CNN 恐懼貪婪** | 0–100，0=極度恐懼、100=極度貪婪 | — | 0–100 | 貪婪→防禦 / 恐懼→積極 | CNN（非官方端點） | ✅ |
+| **景氣 · 殖利率曲線 10Y–2Y** | 10年減2年公債殖利率；負值(倒掛)是經典衰退領先訊號 | % | -1.0–2.5 | 倒掛→防禦 / 正斜率→積極 | FRED `T10Y2Y`（免金鑰） | ✅ |
+| **利率 · 10年期殖利率** | 美10年期公債殖利率，無風險利率錨，越高壓抑高估值股 | % | 1.0–5.5 | 越高→防禦 | FRED `DGS10`（免金鑰） | ✅ |
+
+### 台股
+
+| 因子 | 數字是什麼 | 單位 | 校準區間 | 方向 | 來源 | 狀態 |
+| --- | --- | --- | --- | --- | --- | --- |
+| **估值 · 大盤本益比** | 台股加權指數本益比，歷史多在 10–25 | x | 10–25 | 越貴→防禦 | TODO（建議 FinMind） | ⛏ 未接線 |
+| **情緒 · 波動/融資餘額** | 以波動率/融資餘額代理散戶情緒 | — | 0–100 | 貪婪→防禦 | TODO（建議 FinMind） | ⛏ 未接線 |
+| **景氣 · 國發會景氣對策信號** | 綜合分數 9–45，藍燈(低)逆向加碼、紅燈(高)轉防禦；台灣特有 | 分 | 9–45 | 紅燈→防禦 / 藍燈→加碼 | TODO（FinMind/國發會） | ⛏ 未接線 |
+| **資金 · 外資買賣超** | 外資當日買賣超金額，買超偏積極、賣超轉防禦（單日 proxy） | 億 | -300–300 | 買超→積極 | TWSE | ✅ |
+
+> 美股四項已接好（FRED 免金鑰最穩；CAPE、恐懼貪婪是解析非官方來源，較脆弱但已包重試）。
+> 台股目前只有外資接上，其餘三項為 `NotImplementedError`，抓取時自動沿用舊值並標 stale。
+> **補齊台股最快的路是接 [FinMind](https://finmindtrade.com/)（免費 token）**，填上 `fetch_data.py` 的
+> `fetch_tw_valuation / fetch_tw_sentiment / fetch_tw_cycle` 三個函式即可。
+
+---
+
+## 分數怎麼算（計分邏輯）
+
+1. **單因子 → 積極度 0–100**（`index.html` 的 `scoreOf()`）
+   ```
+   pct = clamp((value - cal_min) / (cal_max - cal_min), 0, 1)
+   積極度 = (invert ? 1 - pct : pct) × 100
+   ```
+   `invert=true` 代表「值越大越防禦」（估值、情緒、利率）；`invert=false` 代表「值越大越積極」（殖利率曲線、外資買超）。
+
+2. **單市場分數** = 四因子積極度的**加權平均**（權重來自滑桿，預設等權重）。
+
+3. **整體分數** = 美股分數 × 美股配置 + 台股分數 × 台股配置（配置滑桿，預設 50/50）。
+
+> 目前 `scoreOf()` 用「校準區間線性映射」當佔位。正式版只要把**這一個函式**換成「對過去 N 年取百分位 (percentile rank)」，其餘 UI 不用動。
+
+---
 
 ## 本機執行
 
 ```bash
-# 用 http server 開（直接 file:// 會被 CORS 擋掉 fetch('data.json')）
+# 用 http server 開（直接 file:// 會被瀏覽器 CORS 擋掉 fetch('data.json')）
 python3 -m http.server
 # 瀏覽器開 http://localhost:8000
 
-# 手動更新一次資料
+# 手動更新一次資料（會去抓線上來源，更新 data.json）
 python3 fetch_data.py
 ```
 
-`fetch_data.py` 零外部相依（純標準函式庫）。
+`fetch_data.py` 零外部相依（純標準函式庫），內建瀏覽器標頭與重試（指數退避），降低偶發 timeout/被擋。
 
-## 自動更新（GitHub Actions）
+---
 
-`.github/workflows/update-dashboard.yml` 每天 UTC 22:30（美股收盤後）跑 `fetch_data.py` 並把 `data.json` commit 回 repo，也可在 Actions 頁手動觸發。
+## GitHub Actions 自動更新（操作設定）
 
-> 第一次啟用前，到 **Settings → Actions → General → Workflow permissions** 設成 **Read and write**，git push 才不會被擋。
+排程設定在 `.github/workflows/update-dashboard.yml`：每天 **UTC 22:30 ≈ 台灣 06:30**（美股收盤後）跑 `fetch_data.py`，把 `data.json` 變動 commit 回 repo。
+
+### 一次性設定（已完成）
+
+- **Workflow 寫入權限**：Settings → Actions → General → Workflow permissions → **Read and write**（否則排程跑完無法 push）。
+  *本 repo 已透過 API 設定為 write，無需再手動點。*
+
+### 三種觸發方式
+
+| 方式 | 怎麼做 |
+| --- | --- |
+| **自動排程** | 不用做事，每天台灣早上 06:30 自動跑 |
+| **網頁手動** | repo 上方 **Actions** 分頁 → 左側「Update dashboard data」→ 右邊 **Run workflow** |
+| **指令手動** | `gh workflow run update-dashboard.yml -R <owner>/<repo>` |
+
+查狀態：`gh run list -R <owner>/<repo>`；看單次日誌：`gh run view <run-id> --log`。
+
+> 非交易日（週末/假日）TWSE 無外資資料，會自動沿用舊值並標 stale，屬正常。
+
+---
 
 ## 兩個工程上的坑（決定分數卡可不可信）
 
-1. **標準化（最關鍵）**：原始數值沒有意義（CAPE=30 高不高要對照自身歷史）。目前 `index.html` 的 `scoreOf()` 用「校準區間線性映射」當佔位，正式版只要把**這一個函式**換成「對過去 N 年取百分位 (percentile rank)」，其餘 UI 不用動。
+1. **標準化（最關鍵）**：原始數值沒有意義（CAPE=30 高不高要對照自身歷史）。目前用線性映射當佔位，正式版改成「對過去 N 年取百分位」。
 2. **權重別過度調參**：彙總權重最容易自欺。v1 用等權重，別拿近期行情去 tune（那就是 overfitting）。
 
 回測注意：景氣燈號、PMI 這類總經數據有發布落差且會事後修正，回測要用「當時可得」的值，避免 lookahead bias。每個因子的 `scoreOf()` 輸出就是未來回測的一個 feature，資料結構已對齊 vectorbt。
+
+---
 
 ## 路線圖
 
@@ -58,9 +140,9 @@ python3 fetch_data.py
 
 ```
 .
-├── index.html                 # 互動 widget（讀 data.json，抓不到用範例值）
-├── fetch_data.py              # 抓各因子原始值 → data.json（零相依）
-├── data.json                  # 種子數據，Actions 持續更新
+├── index.html                 # 互動 widget（讀 data.json，大字呈現數值 + 說明 + 來源）
+├── fetch_data.py              # 抓各因子原始值 → data.json（零相依，含重試/瀏覽器標頭）
+├── data.json                  # 種子數據 + 每因子的 desc/cal/invert/source，Actions 持續更新 value
 ├── requirements.txt
 └── .github/workflows/
     └── update-dashboard.yml   # 排程抓取並 commit 回 repo
