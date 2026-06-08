@@ -13,9 +13,12 @@
   python fetch_history.py --start 2010-01-01
   FINMIND_TOKEN=xxx python fetch_history.py     # 台股建議設 token 提高限額
 
-來源驗證狀態（沙箱無法實跑，第一次在本機跑會知道哪些要微調）：
-  ✅ 已於 Actions/實測確認：FinMind PER/Margin、CNN F&G(帶 Referer)、CAPE(multpl)、US Treasury
-  ⚠ 待你本機確認：stooq SPY 價格、FinMind 0050 價格、FinMind 三大法人(外資)資料集名稱
+來源驗證狀態（已於 GitHub Actions runner 實跑確認）：
+  ✅ 可抓：CNN F&G(帶 Referer，約近1年)、US Treasury 2Y/10Y、Yahoo SPY、
+          FinMind 2330 PER / 整體融資 / 三大法人(外資) / 0050 價格
+  ⚠ CAPE 未解：multpl 全頁 JS(AJAX 載入)，靜態抓不到；nasdaq/quandl 需金鑰。
+     → 待補：改抓 Shiller 官方 ie_data.xls (需 xlrd，月頻 1871 起)。目前美股缺估值因子，
+       回測自動以 利率+曲線+情緒 重分配權重(同台股缺景氣的處理)。
 """
 
 from __future__ import annotations

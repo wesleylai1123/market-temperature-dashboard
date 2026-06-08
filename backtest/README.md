@@ -39,20 +39,26 @@ python run_backtest.py --market TW --price data/tw_price.csv --factors data/tw_f
 
 ## 資料來源與驗證狀態
 
+（已於 GitHub Actions runner 實跑全部驗證）
+
 | 市場 | 因子/價格 | 來源 | 狀態 |
 | --- | --- | --- | --- |
-| 美股 | 估值 CAPE | multpl by-month 表 | ✅ 已驗證可抓 |
-| 美股 | 情緒 恐懼貪婪 | CNN historical（帶 Referer） | ✅ 端點已驗證（歷史約 2020+，早期自動重分配權重） |
-| 美股 | 景氣/利率 2Y·10Y | 美國財政部逐年 CSV | ✅ 已驗證可抓 |
-| 美股 | 價格 SPY | stooq `spy.us` | ⚠ 本機首次跑確認 |
-| 台股 | 估值 2330 PER | FinMind `TaiwanStockPER` | ✅ 已驗證可抓 |
-| 台股 | 情緒 融資餘額 | FinMind 整體融資 | ✅ 已驗證可抓 |
-| 台股 | 外資買賣超 | FinMind `TaiwanStockTotalInstitutionalInvestors` | ⚠ 資料集名稱待確認，失敗自動略過 |
-| 台股 | 價格 0050 | FinMind `TaiwanStockPrice` | ⚠ 本機首次跑確認 |
+| 美股 | 估值 CAPE | — | ❌ 未解：multpl 全頁 JS、nasdaq 需金鑰。待改抓 Shiller `ie_data.xls` |
+| 美股 | 情緒 恐懼貪婪 | CNN historical（帶 Referer） | ✅ 可抓（僅約近 1 年，早期自動重分配權重） |
+| 美股 | 景氣/利率 2Y·10Y | 美國財政部逐年 CSV | ✅ 可抓（4110 筆 / 自 ~1990） |
+| 美股 | 價格 SPY | Yahoo chart API（stooq 備援） | ✅ 可抓 |
+| 台股 | 估值 2330 PER | FinMind `TaiwanStockPER` | ✅ 可抓 |
+| 台股 | 情緒 融資餘額 | FinMind 整體融資 | ✅ 可抓 |
+| 台股 | 外資買賣超 | FinMind `TaiwanStockTotalInstitutionalInvestors` | ✅ 可抓 |
+| 台股 | 價格 0050 | FinMind `TaiwanStockPrice` | ✅ 可抓 |
 
-> 回測「運算」部分（`scores.py` + `run_backtest.py`）已用合成資料離線測過：分數策略
-> 的最大回撤明顯小於買進持有，符合「低分抱現金降曝險」的預期行為。「抓取」部分因
-> 沙箱無網路未對線上實測，第一次在你機器上跑會知道哪些端點要微調。
+> 整條管線已在 GitHub Actions（`.github/workflows/backtest.yml`，手動觸發）端到端跑通並
+> 印出 KPI；運算部分另用合成資料離線驗證過。
+>
+> **唯一缺口：美股 CAPE**。multpl 表格是 JS 動態載入(靜態抓到的是 CSS)，nasdaq/quandl 需
+> 金鑰。所以目前美股回測缺最重要的估值因子，結論偏「利率/景氣擇時」，請保留解讀空間。
+> 補法：抓 Robert Shiller 官方 `ie_data.xls`（月頻 CAPE，自 1871；需 `pip install xlrd`、
+> 解析分數年份欄）。
 
 ## 已知限制 / 下一步
 
