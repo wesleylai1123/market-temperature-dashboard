@@ -64,23 +64,33 @@ def _get(url, headers=None, timeout=30, retries=3):
 # ---- 美股 ---------------------------------------------------------------------
 
 def us_cape():
-    """Shiller CAPE 月歷史（multpl by-month 表）。先去 HTML 標籤(含 &nbsp;)再抽 日期+數值。"""
-    html = _get("https://www.multpl.com/shiller-pe/table/by-month")
-    text = re.sub(r"<[^>]+>", " ", html).replace("\xa0", " ").replace("&nbsp;", " ")
-    text = re.sub(r"\s+", " ", text)
-    # 容忍 3 字母或全月名、逗號可有可無
-    pairs = re.findall(r"([A-Z][a-z]{2,8}\.? \d{1,2},? \d{4})\s+([0-9]{1,3}\.[0-9]+)", text)
+    """Shiller CAPE 月歷史。multpl 圖表資料嵌在頁面 JS 的 [epoch_ms, value] 陣列裡。"""
+    html = _get("https://www.multpl.com/shiller-pe")
+
+    # 策略 A：JS 圖表序列 [epoch_ms, value]（epoch 可為負，代表 1970 前）
+    pairs = re.findall(r"\[\s*(-?\d{11,14})\s*,\s*([0-9]{1,3}(?:\.[0-9]+)?)\s*\]", html)
     rows = []
-    for d, v in pairs:
-        for fmt in ("%b %d, %Y", "%b %d %Y", "%B %d, %Y", "%B %d %Y"):
-            try:
-                rows.append((datetime.strptime(d, fmt), float(v)))
-                break
-            except ValueError:
-                continue
+    for ms, v in pairs:
+        ms, v = int(ms), float(v)
+        if 1.0 <= v <= 100.0:  # 過濾非 CAPE 的數對
+            rows.append((pd.to_datetime(ms, unit="ms"), v))
+
+    # 策略 B：純文字表格（去標籤）備援
     if not rows:
-        raise ValueError(f"CAPE 表解析為 0 筆（text 長度 {len(text)}；樣本: {text[:300]!r}）")
-    return pd.Series({d: v for d, v in rows}).sort_index().rename("valuation")
+        text = re.sub(r"<[^>]+>", " ", _get("https://www.multpl.com/shiller-pe/table/by-month"))
+        text = text.replace("\xa0", " ").replace("&nbsp;", " ")
+        text = re.sub(r"\s+", " ", text)
+        for d, v in re.findall(r"([A-Z][a-z]{2,8}\.? \d{1,2},? \d{4})\s+([0-9]{1,3}\.[0-9]+)", text):
+            for fmt in ("%b %d, %Y", "%b %d %Y", "%B %d, %Y", "%B %d %Y"):
+                try:
+                    rows.append((datetime.strptime(d, fmt), float(v)))
+                    break
+                except ValueError:
+                    continue
+
+    if not rows:
+        raise ValueError("CAPE 解析為 0 筆（JS 與表格兩法皆失敗，版面可能變動）")
+    return pd.Series(dict(rows)).sort_index().rename("valuation")
 
 
 def us_fear_greed():
