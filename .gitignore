@@ -4,3 +4,8 @@ __pycache__/
 .venv/
 venv/
 backtest/data/
+backtest/results/
+
+# 以下兩個由本機手動執行後選擇性 commit，不由 CI 自動推送
+# agent_report.json      ← 執行 python agent/trading_agent.py 產生
+# backtest_results.json  ← 執行 backtest/merge_results.py 產生
