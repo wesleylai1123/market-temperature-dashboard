@@ -7,9 +7,13 @@ on:
         description: "歷史起始日 YYYY-MM-DD"
         default: "2010-01-01"
         required: false
+      commit_results:
+        description: "將 backtest_results.json 提交回儲存庫（供儀表板顯示）"
+        default: "false"
+        type: boolean
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   backtest:
@@ -34,8 +38,9 @@ jobs:
           FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }} # 可選；提高 FinMind 限額
         run: python fetch_history.py --start "${{ inputs.start }}"
 
-      - name: Run backtests (US + TW) → step summary
+      - name: Run backtests (US + TW) → step summary + JSON
         run: |
+          mkdir -p results
           echo "## 回測結果（市場溫度分數 vs 買進持有）" >> "$GITHUB_STEP_SUMMARY"
           for mkt in US TW; do
             lower=$(echo "$mkt" | tr 'A-Z' 'a-z')
@@ -45,6 +50,7 @@ jobs:
             if [ -f "$price" ] && [ -f "$factors" ]; then
               echo '```' >> "$GITHUB_STEP_SUMMARY"
               python run_backtest.py --market "$mkt" --price "$price" --factors "$factors" \
+                --output-json "results/${lower}_results.json" \
                 | tee -a "$GITHUB_STEP_SUMMARY"
               echo '```' >> "$GITHUB_STEP_SUMMARY"
             else
@@ -52,10 +58,34 @@ jobs:
             fi
           done
 
-      - name: Upload data CSVs
+      - name: Merge results into backtest_results.json
+        run: |
+          python merge_results.py \
+            --us results/us_results.json \
+            --tw results/tw_results.json \
+            --out ../backtest_results.json
+
+      - name: Commit backtest_results.json
+        if: ${{ inputs.commit_results == 'true' }}
+        run: |
+          cd ..
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if ! git diff --quiet -- backtest_results.json 2>/dev/null || [ ! -f backtest_results.json ]; then
+            git add backtest_results.json
+            git commit -m "chore: update backtest results ($(date -u +%Y-%m-%dT%H:%MZ))"
+            git push
+          else
+            echo "backtest_results.json 無變動，略過 commit"
+          fi
+
+      - name: Upload data CSVs and results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: backtest-data
-          path: backtest/data/*.csv
+          path: |
+            backtest/data/*.csv
+            backtest/results/*.json
+            backtest_results.json
           if-no-files-found: warn

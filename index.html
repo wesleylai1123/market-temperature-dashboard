@@ -31,6 +31,7 @@
   .sub { color: var(--muted); font-size: 13px; }
   .updated { color: var(--muted); font-size: 12px; }
 
+  /* ── Overall lamp ─────────────────────────────────────────────── */
   .overall {
     margin: 22px 0 26px;
     background: linear-gradient(180deg, var(--panel-2), var(--panel));
@@ -46,6 +47,46 @@
   .overall .advice { color: var(--muted); font-size: 14px; margin-top: 2px; }
   .overall .score { font-variant-numeric: tabular-nums; font-size: 13px; color: var(--muted); margin-top: 6px; }
 
+  /* ── Agent report card ────────────────────────────────────────── */
+  .agent-card {
+    background: linear-gradient(135deg, #0f1e35, #131a26);
+    border: 1px solid #2a4060;
+    border-radius: 16px;
+    padding: 18px 22px 16px;
+    margin-bottom: 22px;
+    display: none; /* shown when agent_report.json loads */
+  }
+  .agent-card.loaded { display: block; }
+  .agent-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .agent-icon { font-size: 20px; }
+  .agent-title { font-size: 15px; font-weight: 600; color: var(--accent); }
+  .agent-meta { margin-left: auto; font-size: 11px; color: var(--muted); }
+  .agent-stance-badge {
+    display: inline-block; padding: 3px 12px; border-radius: 999px;
+    font-size: 13px; font-weight: 700;
+  }
+  .agent-analysis { color: var(--muted); font-size: 13px; margin: 8px 0 12px; line-height: 1.6; }
+  .agent-recs { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+  @media (max-width: 540px) { .agent-recs { grid-template-columns: 1fr; } }
+  .agent-rec {
+    background: var(--panel-2); border: 1px solid var(--line);
+    border-radius: 10px; padding: 12px 14px;
+  }
+  .agent-rec-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .agent-rec-label { font-size: 13px; font-weight: 600; }
+  .agent-rec-weight {
+    margin-left: auto; font-size: 20px; font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .agent-rec-reason { color: var(--muted); font-size: 12px; line-height: 1.5; }
+  .agent-weight-bar { height: 6px; border-radius: 999px; background: #0e1422; margin-top: 8px; border: 1px solid var(--line); overflow: hidden; }
+  .agent-weight-bar > span { display: block; height: 100%; border-radius: 999px; background: var(--accent); transition: width .3s ease; }
+  .agent-items { margin: 0; padding-left: 18px; }
+  .agent-items li { font-size: 12px; color: var(--muted); margin: 4px 0; }
+  .agent-risk { font-size: 11px; color: var(--amber); margin-top: 8px; }
+  .confidence-badge { font-size: 10px; color: var(--muted); border: 1px solid var(--line); padding: 1px 7px; border-radius: 999px; margin-left: 6px; }
+
+  /* ── Market cards ─────────────────────────────────────────────── */
   .markets { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
   @media (max-width: 760px) { .markets { grid-template-columns: 1fr; } }
   .card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 18px 18px 8px; }
@@ -83,6 +124,7 @@
   details.edit > summary::-webkit-details-marker { display: none; }
   details.edit .finput { margin-top: 6px; }
 
+  /* ── Controls ─────────────────────────────────────────────────── */
   .controls { margin-top: 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
   @media (max-width: 760px) { .controls { grid-template-columns: 1fr; } }
   .controls .card { padding: 16px 18px 18px; }
@@ -95,6 +137,40 @@
   .slider .val { font-size: 12px; text-align: right; font-variant-numeric: tabular-nums; }
   .warn { color: var(--amber); font-size: 11px; margin-top: 6px; }
 
+  /* ── Backtest section ─────────────────────────────────────────── */
+  .backtest-section {
+    margin-top: 28px;
+    display: none;
+  }
+  .backtest-section.loaded { display: block; }
+  .backtest-section h2 {
+    font-size: 16px; margin: 0 0 14px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .backtest-grids { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media (max-width: 760px) { .backtest-grids { grid-template-columns: 1fr; } }
+  .bt-card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 16px; }
+  .bt-card h3 { font-size: 14px; margin: 0 0 12px; color: var(--text); }
+  .kpi-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .kpi-table th { color: var(--muted); text-align: left; font-weight: 500; padding: 3px 6px 6px 0; border-bottom: 1px solid var(--line); }
+  .kpi-table td { padding: 5px 6px 5px 0; font-variant-numeric: tabular-nums; border-bottom: 1px solid #1a2333; }
+  .kpi-table tr:last-child td { border-bottom: none; }
+  .kpi-better { color: var(--accent); font-weight: 600; }
+  .chart-wrap { margin-top: 12px; position: relative; }
+  canvas.equity-chart { width: 100%; display: block; border-radius: 8px; }
+  .trades-list { margin-top: 10px; }
+  .trades-list h4 { font-size: 12px; color: var(--muted); margin: 0 0 6px; }
+  .trade-row { display: flex; gap: 8px; font-size: 11px; padding: 4px 0; border-bottom: 1px solid #1a2333; }
+  .trade-row:last-child { border-bottom: none; }
+  .trade-date { color: var(--muted); min-width: 86px; }
+  .trade-action.加碼 { color: var(--green); }
+  .trade-action.減碼 { color: var(--red); }
+  .trade-action.初始建倉 { color: var(--accent); }
+  .trade-weight { margin-left: auto; font-variant-numeric: tabular-nums; color: var(--text); }
+  .bt-note { color: var(--muted); font-size: 11px; margin-top: 10px; line-height: 1.5; }
+  .bt-gen-time { color: #5e6b80; font-size: 10px; margin-top: 4px; }
+
+  /* ── Footer ───────────────────────────────────────────────────── */
   footer { margin-top: 30px; color: var(--muted); font-size: 12px; border-top: 1px solid var(--line); padding-top: 16px; }
   footer code { background: var(--panel-2); padding: 1px 6px; border-radius: 6px; color: var(--text); }
   .legend { display: flex; gap: 16px; margin: 8px 0 0; font-size: 12px; color: var(--muted); }
@@ -111,6 +187,7 @@
     <div class="updated" id="updated">資料時間：—</div>
   </header>
 
+  <!-- 整體燈號 -->
   <div class="overall" id="overall">
     <div class="lamp" id="overallLamp" style="color:#888"></div>
     <div class="meta">
@@ -125,8 +202,30 @@
     </div>
   </div>
 
+  <!-- Agent 建議卡片（有 agent_report.json 才顯示）-->
+  <div class="agent-card" id="agentCard">
+    <div class="agent-header">
+      <span class="agent-icon">🤖</span>
+      <span class="agent-title">交易代理人建議</span>
+      <span class="agent-meta" id="agentMeta"></span>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;">
+      <span class="agent-stance-badge" id="agentStanceBadge"></span>
+      <span class="confidence-badge" id="agentConfidence"></span>
+    </div>
+    <div class="agent-analysis" id="agentAnalysis"></div>
+    <div class="agent-recs" id="agentRecs"></div>
+    <div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">行動項目</div>
+      <ul class="agent-items" id="agentItems"></ul>
+    </div>
+    <div class="agent-risk" id="agentRisk"></div>
+  </div>
+
+  <!-- 因子卡片 -->
   <div class="markets" id="markets"></div>
 
+  <!-- 權重 & 配置控制 -->
   <div class="controls">
     <div class="card">
       <h3>因子權重 <button id="resetWeights">↺ 回到等權重</button></h3>
@@ -140,9 +239,21 @@
     </div>
   </div>
 
+  <!-- 回測結果（有 backtest_results.json 才顯示）-->
+  <div class="backtest-section" id="backtestSection">
+    <h2>📈 回測表現 <span style="font-size:12px;color:var(--muted);font-weight:400">市場溫度分數策略 vs 買進持有</span></h2>
+    <div class="backtest-grids" id="backtestGrids"></div>
+    <div class="bt-note">
+      策略說明：每月初以上月底合成分數決定股票目標比重（分數/100），其餘現金。對照組為 100% 買進持有。
+      若策略 MaxDD 顯著低於買進持有且 Sharpe 較高，代表溫度訊號對<b>控制回撤</b>有效。
+    </div>
+    <div class="bt-gen-time" id="btGenTime"></div>
+  </div>
+
   <footer>
     <p><b>標準化（坑 1）：</b>目前 <code>scoreOf()</code> 用「校準區間線性映射」當佔位。正式版只要把這一個函式換成「對過去 N 年取百分位 (percentile rank)」即可，其餘 UI 不用動。</p>
-    <p><b>回測對齊：</b>每個因子的 <code>scoreOf()</code> 輸出就是未來回測的一個 feature，資料結構已對齊 vectorbt。景氣/PMI 這類總經數據有發布落差且會事後修正，回測要用「當時可得」的值，避免 lookahead bias。</p>
+    <p><b>回測對齊：</b>每個因子的 <code>scoreOf()</code> 輸出就是未來回測的一個 feature，資料結構已對齊 backtrader / vectorbt。景氣/PMI 這類總經數據有發布落差且會事後修正，回測要用「當時可得」的值，避免 lookahead bias。</p>
+    <p><b>交易代理人：</b>執行 <code>python agent/trading_agent.py</code>（需設 <code>ANTHROPIC_API_KEY</code>），讀取當前訊號後呼叫 Claude 產生月度配置建議，寫入 <code>agent_report.json</code>。</p>
     <p>讀取 <code>data.json</code>；抓不到任何欄位就沿用範例值並標「⚠ 沿用舊值」，<b>永不開天窗</b>。本機請用 <code>python3 -m http.server</code> 開啟（直接 file:// 會被 CORS 擋掉 fetch）。</p>
   </footer>
 </div>
@@ -150,7 +261,7 @@
 <script>
 "use strict";
 
-// ---- Fallback seed (used when data.json 抓不到) -------------------------------
+// ── Fallback seed ──────────────────────────────────────────────────────────────
 const SEED = {
   updated_at: null,
   dimensions: ["valuation", "sentiment", "cycle", "rate"],
@@ -175,16 +286,13 @@ const SEED = {
 
 let DATA = null;
 
-// ---- 標準化：把原始值映射成「積極度」0–100 --------------------------------------
-// 坑 1 的唯一替換點：正式版改成對歷史 N 年取百分位即可。
+// ── 分數計算（與 scores.py score_of 一致）──────────────────────────────────────
 function scoreOf(f) {
   const span = f.cal_max - f.cal_min;
   let pct = span === 0 ? 0.5 : (f.value - f.cal_min) / span;
   pct = Math.max(0, Math.min(1, pct));
-  const aggressiveness = f.invert ? (1 - pct) : pct; // contrarian 方向已在 invert 反映
-  return aggressiveness * 100;
+  return (f.invert ? (1 - pct) : pct) * 100;
 }
-
 function lampColor(score) {
   if (score >= 60) return "var(--green)";
   if (score >= 40) return "var(--amber)";
@@ -195,7 +303,6 @@ function verdictOf(score) {
   if (score >= 40) return { word: "中性", advice: "維持目標權重，按紀律再平衡，不追高不殺低。" };
   return { word: "偏防禦", advice: "風險偏貴，控制曝險、保留銀彈、優先補落後配比。" };
 }
-
 function marketScore(mkt) {
   const w = DATA.weights, factors = DATA.markets[mkt].factors;
   let sum = 0, wsum = 0;
@@ -214,9 +321,15 @@ function overallScore() {
   return wsum === 0 ? (us + tw) / 2 : (us * a.US + tw * a.TW) / wsum;
 }
 
-// ---- 渲染 ---------------------------------------------------------------------
-function el(tag, cls, html) { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; }
+// ── DOM 工具 ──────────────────────────────────────────────────────────────────
+function el(tag, cls, html) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (html != null) e.innerHTML = html;
+  return e;
+}
 
+// ── 渲染：因子卡片 ─────────────────────────────────────────────────────────────
 function renderMarkets() {
   const root = document.getElementById("markets");
   root.innerHTML = "";
@@ -227,7 +340,9 @@ function renderMarkets() {
     const v = verdictOf(sc);
 
     const head = el("div", "card-head");
-    head.appendChild(el("div", "lamp sm", "")).style.color = lampColor(sc);
+    const lampEl = el("div", "lamp sm", "");
+    lampEl.style.color = lampColor(sc);
+    head.appendChild(lampEl);
     head.appendChild(el("h2", null, m.label));
     const vbox = el("div", "v");
     vbox.appendChild(el("b", null, v.word));
@@ -241,19 +356,20 @@ function renderMarkets() {
       const s = scoreOf(f);
       const fc = el("div", "factor");
 
-      // 第一行：名稱（+沿用舊值徽章） ｜ 實際數值大字
       const frow = el("div", "frow");
       frow.appendChild(el("div", "fname", f.label + (f.stale ? '<span class="badge">⚠ 沿用舊值</span>' : "")));
-      const valStr = (typeof f.value === "number" ? f.value : Number(f.value)).toLocaleString("en-US", { maximumFractionDigits: 2 });
+      const valStr = (typeof f.value === "number" ? f.value : Number(f.value))
+        .toLocaleString("en-US", { maximumFractionDigits: 2 });
       frow.appendChild(el("div", "fval", valStr + (f.unit ? '<span class="u">' + f.unit + "</span>" : "")));
       fc.appendChild(frow);
 
-      // 積極度 bar
       const bar = el("div", "bar");
-      const fill = el("span"); fill.style.width = s.toFixed(0) + "%"; fill.style.background = lampColor(s);
-      bar.appendChild(fill); fc.appendChild(bar);
+      const fill = el("span");
+      fill.style.width = s.toFixed(0) + "%";
+      fill.style.background = lampColor(s);
+      bar.appendChild(fill);
+      fc.appendChild(bar);
 
-      // 方向 / 來源 ｜ 積極度分數
       const meta = el("div", "fmeta");
       const left = el("div");
       left.appendChild(el("div", "dir", f.direction || ""));
@@ -262,10 +378,8 @@ function renderMarkets() {
       meta.appendChild(el("div", "pct", "積極度 " + s.toFixed(0)));
       fc.appendChild(meta);
 
-      // 說明
       if (f.desc) fc.appendChild(el("div", "desc-full", f.desc));
 
-      // 試算（what-if）：改數字即時重算，預設收合
       const det = el("details", "edit");
       det.appendChild(el("summary", null, "▸ 試算這個數字"));
       const inWrap = el("div", "finput");
@@ -298,9 +412,14 @@ function renderWeights() {
   for (const dim of DATA.dimensions) {
     const row = el("div", "slider");
     row.appendChild(el("label", null, DATA.dimension_labels[dim] || dim));
-    const r = el("input"); r.type = "range"; r.min = 0; r.max = 100; r.value = Math.round((DATA.weights[dim] ?? 0) * 100);
+    const r = el("input"); r.type = "range"; r.min = 0; r.max = 100;
+    r.value = Math.round((DATA.weights[dim] ?? 0) * 100);
     const val = el("div", "val", r.value + "%");
-    r.addEventListener("input", () => { DATA.weights[dim] = parseInt(r.value, 10) / 100; val.textContent = r.value + "%"; renderMarkets(); renderOverall(); });
+    r.addEventListener("input", () => {
+      DATA.weights[dim] = parseInt(r.value, 10) / 100;
+      val.textContent = r.value + "%";
+      renderMarkets(); renderOverall();
+    });
     row.appendChild(r); row.appendChild(val);
     root.appendChild(row);
   }
@@ -312,12 +431,13 @@ function renderAllocation() {
   const mk = (key, label) => {
     const row = el("div", "slider");
     row.appendChild(el("label", null, label));
-    const r = el("input"); r.type = "range"; r.min = 0; r.max = 100; r.value = Math.round((DATA.allocation[key] ?? 0) * 100);
+    const r = el("input"); r.type = "range"; r.min = 0; r.max = 100;
+    r.value = Math.round((DATA.allocation[key] ?? 0) * 100);
     const val = el("div", "val", r.value + "%");
     r.addEventListener("input", () => {
       const v = parseInt(r.value, 10) / 100;
       DATA.allocation[key] = v;
-      DATA.allocation[key === "US" ? "TW" : "US"] = 1 - v; // 兩者互補，總和 100%
+      DATA.allocation[key === "US" ? "TW" : "US"] = 1 - v;
       val.textContent = r.value + "%";
       renderAllocation(); renderOverall();
     });
@@ -334,16 +454,256 @@ document.getElementById("resetWeights").addEventListener("click", () => {
   renderWeights(); renderMarkets(); renderOverall();
 });
 
-// ---- 載入 data.json，失敗則用 SEED -------------------------------------------
+// ── Agent 報告渲染 ─────────────────────────────────────────────────────────────
+function stanceColor(stance) {
+  if (stance === "積極") return "var(--green)";
+  if (stance === "防禦") return "var(--red)";
+  return "var(--amber)";
+}
+
+function renderAgent(report) {
+  const card = document.getElementById("agentCard");
+  card.classList.add("loaded");
+
+  const ts = report.timestamp ? report.timestamp.slice(0, 16).replace("T", " ") + " UTC" : "—";
+  document.getElementById("agentMeta").textContent = "更新：" + ts;
+
+  const badge = document.getElementById("agentStanceBadge");
+  badge.textContent = report.overall_stance + " " + (report.overall_score ?? "").toFixed(0);
+  badge.style.background = stanceColor(report.overall_stance) + "22";
+  badge.style.color = stanceColor(report.overall_stance);
+  badge.style.border = "1px solid " + stanceColor(report.overall_stance) + "55";
+
+  const confEl = document.getElementById("agentConfidence");
+  confEl.textContent = "信心：" + (report.confidence || "—");
+
+  document.getElementById("agentAnalysis").textContent = report.analysis || "";
+
+  const recs = document.getElementById("agentRecs");
+  recs.innerHTML = "";
+  const mkts = { US: "美股 (US)", TW: "台股 (TW)" };
+  for (const [key, label] of Object.entries(mkts)) {
+    const rec = (report.recommendations || {})[key];
+    if (!rec) continue;
+    const div = el("div", "agent-rec");
+    const header = el("div", "agent-rec-header");
+    header.appendChild(el("span", "agent-rec-label", label));
+    const stanceBadge = el("span", "agent-stance-badge", rec.stance);
+    stanceBadge.style.background = stanceColor(rec.stance) + "22";
+    stanceBadge.style.color = stanceColor(rec.stance);
+    stanceBadge.style.border = "1px solid " + stanceColor(rec.stance) + "55";
+    stanceBadge.style.padding = "1px 8px";
+    stanceBadge.style.fontSize = "11px";
+    header.appendChild(stanceBadge);
+    const wEl = el("div", "agent-rec-weight", (rec.target_weight_pct ?? "—") + "%");
+    wEl.style.color = stanceColor(rec.stance);
+    header.appendChild(wEl);
+    div.appendChild(header);
+    const barWrap = el("div", "agent-weight-bar");
+    const barFill = el("span");
+    barFill.style.width = (rec.target_weight_pct ?? 0) + "%";
+    barWrap.appendChild(barFill);
+    div.appendChild(barWrap);
+    div.appendChild(el("div", "agent-rec-reason", rec.reasoning || ""));
+    recs.appendChild(div);
+  }
+
+  const items = document.getElementById("agentItems");
+  items.innerHTML = "";
+  for (const item of (report.action_items || [])) {
+    items.appendChild(el("li", null, item));
+  }
+
+  const risk = document.getElementById("agentRisk");
+  risk.textContent = report.risk_notes ? "⚠ " + report.risk_notes : "";
+}
+
+// ── 回測圖表（Canvas）─────────────────────────────────────────────────────────
+function drawEquityChart(canvas, equityMonthly) {
+  const { dates, strategy, buyhold } = equityMonthly;
+  if (!dates || dates.length < 2) return;
+
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.clientWidth || 320;
+  const H = 200;
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.height = H + "px";
+
+  const ctx = canvas.getContext("2d");
+  ctx.scale(dpr, dpr);
+
+  const PAD = { top: 22, right: 14, bottom: 32, left: 52 };
+  const cW = W - PAD.left - PAD.right;
+  const cH = H - PAD.top - PAD.bottom;
+
+  const allVals = [...strategy, ...buyhold];
+  const minV = Math.min(...allVals) * 0.97;
+  const maxV = Math.max(...allVals) * 1.03;
+
+  const px = i => PAD.left + (i / (dates.length - 1)) * cW;
+  const py = v => PAD.top + cH - (v - minV) / (maxV - minV) * cH;
+
+  // Background
+  ctx.fillStyle = "#0e1422";
+  ctx.roundRect(0, 0, W, H, 8);
+  ctx.fill();
+
+  // Horizontal grid lines
+  ctx.strokeStyle = "#1a2333";
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const v = minV + (maxV - minV) * i / 4;
+    const yp = py(v);
+    ctx.beginPath(); ctx.moveTo(PAD.left, yp); ctx.lineTo(PAD.left + cW, yp); ctx.stroke();
+    ctx.fillStyle = "#5e6b80";
+    ctx.font = `10px monospace`;
+    ctx.textAlign = "right";
+    ctx.fillText(v.toFixed(0), PAD.left - 6, yp + 4);
+  }
+
+  // Year labels on x-axis
+  const seenYears = new Set();
+  dates.forEach((d, i) => {
+    const yr = d.slice(0, 4);
+    if (!seenYears.has(yr)) {
+      seenYears.add(yr);
+      const xp = px(i);
+      ctx.fillStyle = "#5e6b80";
+      ctx.font = "10px monospace";
+      ctx.textAlign = "center";
+      ctx.fillText(yr, xp, PAD.top + cH + 18);
+      ctx.strokeStyle = "#1a2333";
+      ctx.lineWidth = 0.5;
+      ctx.beginPath(); ctx.moveTo(xp, PAD.top); ctx.lineTo(xp, PAD.top + cH); ctx.stroke();
+    }
+  });
+
+  // Buy-and-hold line (muted gray)
+  ctx.strokeStyle = "#4a5568";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  buyhold.forEach((v, i) => { i === 0 ? ctx.moveTo(px(i), py(v)) : ctx.lineTo(px(i), py(v)); });
+  ctx.stroke();
+
+  // Strategy line (accent blue)
+  ctx.strokeStyle = "#4f8cff";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  strategy.forEach((v, i) => { i === 0 ? ctx.moveTo(px(i), py(v)) : ctx.lineTo(px(i), py(v)); });
+  ctx.stroke();
+
+  // Legend
+  ctx.fillStyle = "#4f8cff";
+  ctx.fillRect(PAD.left, 8, 18, 2);
+  ctx.fillStyle = "#e6edf6";
+  ctx.font = "10px sans-serif";
+  ctx.textAlign = "left";
+  ctx.fillText("分數策略", PAD.left + 22, 14);
+  ctx.fillStyle = "#4a5568";
+  ctx.fillRect(PAD.left + 80, 8, 18, 2);
+  ctx.fillStyle = "#8b99ad";
+  ctx.fillText("買進持有", PAD.left + 102, 14);
+
+  // Final values
+  const lastS = strategy[strategy.length - 1], lastB = buyhold[buyhold.length - 1];
+  ctx.fillStyle = "#4f8cff";
+  ctx.font = "bold 10px monospace";
+  ctx.textAlign = "left";
+  ctx.fillText(lastS.toFixed(0), PAD.left + cW + 2, py(lastS) + 4);
+  ctx.fillStyle = "#8b99ad";
+  ctx.fillText(lastB.toFixed(0), PAD.left + cW + 2, py(lastB) + 4);
+}
+
+// ── 回測結果渲染 ───────────────────────────────────────────────────────────────
+function renderBacktest(btData) {
+  const section = document.getElementById("backtestSection");
+  section.classList.add("loaded");
+
+  const grid = document.getElementById("backtestGrids");
+  grid.innerHTML = "";
+
+  const labels = { US: "美股 (SPY)", TW: "台股 (0050)" };
+
+  for (const [mkt, mktData] of Object.entries(btData.markets || {})) {
+    const card = el("div", "bt-card");
+    card.appendChild(el("h3", null, (labels[mkt] || mkt) +
+      " <span style='color:var(--muted);font-weight:400;font-size:12px'>" +
+      mktData.period.start + " ~ " + mktData.period.end + "  " + mktData.period.years.toFixed(1) + "年</span>"));
+
+    // KPI table
+    const sk = mktData.strategy_kpis, bk = mktData.buyhold_kpis;
+    const table = el("table", "kpi-table");
+    const thead = el("tr");
+    thead.appendChild(el("th", null, "指標"));
+    thead.appendChild(el("th", null, "分數策略"));
+    thead.appendChild(el("th", null, "買進持有"));
+    table.appendChild(thead);
+
+    const kpiRows = [
+      ["CAGR", (sk.cagr * 100).toFixed(2) + "%", (bk.cagr * 100).toFixed(2) + "%",
+        sk.sharpe >= bk.sharpe],
+      ["Sharpe", sk.sharpe.toFixed(2), bk.sharpe.toFixed(2),
+        sk.sharpe >= bk.sharpe],
+      ["MaxDD", (sk.max_dd * 100).toFixed(2) + "%", (bk.max_dd * 100).toFixed(2) + "%",
+        sk.max_dd > bk.max_dd],  // max_dd is negative; > means less negative = better
+    ];
+    for (const [name, sv, bv, stratBetter] of kpiRows) {
+      const tr = el("tr");
+      tr.appendChild(el("td", null, name));
+      tr.appendChild(el("td", stratBetter ? "kpi-better" : null, sv));
+      tr.appendChild(el("td", !stratBetter ? "kpi-better" : null, bv));
+      table.appendChild(tr);
+    }
+    card.appendChild(table);
+
+    // Equity chart
+    const chartWrap = el("div", "chart-wrap");
+    const canvas = document.createElement("canvas");
+    canvas.className = "equity-chart";
+    canvas.style.width = "100%";
+    chartWrap.appendChild(canvas);
+    card.appendChild(chartWrap);
+
+    // Trades (last 8)
+    if (mktData.trades && mktData.trades.length > 0) {
+      const tDiv = el("div", "trades-list");
+      tDiv.appendChild(el("h4", null, "換倉記錄（最近 8 筆）"));
+      const trades = [...mktData.trades].reverse().slice(0, 8);
+      for (const t of trades) {
+        const row = el("div", "trade-row");
+        row.appendChild(el("span", "trade-date", t.date));
+        row.appendChild(el("span", "trade-action " + t.action, t.action));
+        const chgStr = t.change >= 0 ? "+" + (t.change * 100).toFixed(0) + "%" : (t.change * 100).toFixed(0) + "%";
+        row.appendChild(el("span", "trade-weight",
+          "→ " + (t.target_weight * 100).toFixed(0) + "% 股 (" + chgStr + ")"));
+        tDiv.appendChild(row);
+      }
+      card.appendChild(tDiv);
+    }
+
+    grid.appendChild(card);
+
+    // Draw chart after layout
+    requestAnimationFrame(() => drawEquityChart(canvas, mktData.equity_monthly));
+  }
+
+  if (btData.generated_at) {
+    const d = btData.generated_at.slice(0, 16).replace("T", " ") + " UTC";
+    document.getElementById("btGenTime").textContent = "回測產生時間：" + d;
+  }
+}
+
+// ── 資料載入 ───────────────────────────────────────────────────────────────────
 async function boot() {
+  // data.json
   try {
     const res = await fetch("data.json", { cache: "no-store" });
     if (!res.ok) throw new Error("HTTP " + res.status);
     DATA = await res.json();
     document.getElementById("updated").textContent = "資料時間：" + (DATA.updated_at || "—");
-  } catch (e) {
+  } catch {
     DATA = JSON.parse(JSON.stringify(SEED));
-    // 標記所有因子為沿用舊值
     for (const mkt of Object.keys(DATA.markets))
       for (const dim of Object.keys(DATA.markets[mkt].factors))
         DATA.markets[mkt].factors[dim].stale = true;
@@ -353,8 +713,30 @@ async function boot() {
   if (!DATA.dimension_labels) DATA.dimension_labels = SEED.dimension_labels;
   if (!DATA.weights) DATA.weights = { ...SEED.weights };
   if (!DATA.allocation) DATA.allocation = { ...SEED.allocation };
+
   renderWeights(); renderAllocation(); renderAll();
+
+  // agent_report.json（可選）
+  try {
+    const res = await fetch("agent_report.json", { cache: "no-store" });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const report = await res.json();
+    renderAgent(report);
+  } catch {
+    // 沒有代理人報告時靜默略過
+  }
+
+  // backtest_results.json（可選）
+  try {
+    const res = await fetch("backtest_results.json", { cache: "no-store" });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const btData = await res.json();
+    renderBacktest(btData);
+  } catch {
+    // 沒有回測結果時靜默略過
+  }
 }
+
 boot();
 </script>
 </body>

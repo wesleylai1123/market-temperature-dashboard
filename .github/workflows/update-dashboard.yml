@@ -7,7 +7,7 @@ on:
   workflow_dispatch: {} # 也可手動觸發
 
 permissions:
-  contents: write # git push data.json 需要寫入權限
+  contents: write # git push data.json / agent_report.json 需要寫入權限
 
 jobs:
   update:
@@ -29,14 +29,28 @@ jobs:
           FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }} # 可選；未設則走 FinMind 匿名(限流較低)
         run: python fetch_data.py
 
-      - name: Commit updated data.json
+      - name: Run trading agent
+        if: ${{ secrets.ANTHROPIC_API_KEY != '' }}
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          pip install -r agent/requirements.txt -q
+          python agent/trading_agent.py
+        continue-on-error: true  # 不讓 API 失敗阻斷資料更新
+
+      - name: Commit updated files
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          if git diff --quiet -- data.json; then
-            echo "data.json 無變動，略過 commit"
+          FILES_CHANGED=()
+          if ! git diff --quiet -- data.json; then FILES_CHANGED+=(data.json); fi
+          if [ -f agent_report.json ] && ! git diff --quiet -- agent_report.json 2>/dev/null; then
+            FILES_CHANGED+=(agent_report.json)
+          fi
+          if [ ${#FILES_CHANGED[@]} -eq 0 ]; then
+            echo "無檔案變動，略過 commit"
           else
-            git add data.json
+            git add "${FILES_CHANGED[@]}"
             git commit -m "chore: update dashboard data ($(date -u +%Y-%m-%dT%H:%MZ))"
             git push
           fi
