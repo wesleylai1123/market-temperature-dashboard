@@ -214,6 +214,41 @@ def _parse_ndc_date(series):
     return pd.to_datetime(s, errors="coerce")
 
 
+def _ndc_csv_resources(meta):
+    """data.gov.tw dataset API 的資源清單欄位在不同資料集/版本間不一致：
+    可能是 CKAN 風格 result.resources（欄位 format/url），
+    也可能是 DCAT 風格 result.distribution（欄位 resourceFormat/resourceDownloadUrl）。
+    這裡相容兩種命名，回傳 [(url, name), ...] 的 CSV 資源清單。
+    """
+    result = meta.get("result")
+    items = None
+    if isinstance(result, list):
+        items = result
+    elif isinstance(result, dict):
+        for key in ("resources", "distribution", "distributions"):
+            v = result.get(key)
+            if isinstance(v, list):
+                items = v
+                break
+    if items is None:
+        detail = list(result.keys()) if isinstance(result, dict) else type(result).__name__
+        raise ValueError(f"dataset 6099 回傳格式非預期，result 結構={detail}")
+
+    out = []
+    for r in items:
+        fmt = str(r.get("format") or r.get("resourceFormat") or "").upper()
+        url = r.get("url") or r.get("resourceDownloadUrl") or r.get("downloadURL") or r.get("accessURL")
+        name = r.get("name") or r.get("resourceDescription") or r.get("resourceName") or url
+        if url and (fmt == "CSV" or str(url).lower().endswith(".csv")):
+            out.append((url, name))
+    if not out:
+        names = [(r.get("name") or r.get("resourceDescription"),
+                   r.get("format") or r.get("resourceFormat"),
+                   r.get("url") or r.get("resourceDownloadUrl")) for r in items]
+        raise ValueError(f"dataset 6099 無 CSV 資源，resources={names}")
+    return out
+
+
 def tw_cycle(start):
     """景氣對策信號(9-45)月頻歷史。data.gov.tw 開放資料平台「景氣指標及燈號」(dataset 6099, 國發會)，免金鑰。
 
@@ -223,18 +258,12 @@ def tw_cycle(start):
     from io import StringIO
 
     meta = json.loads(_get("https://data.gov.tw/api/v2/rest/dataset/6099"))
-    resources = meta.get("result", {}).get("resources")
-    if resources is None:
-        raise ValueError(f"dataset 6099 回傳格式非預期，頂層欄位={list(meta.keys())}")
-    csv_resources = [r for r in resources if str(r.get("format", "")).upper() == "CSV"]
-    if not csv_resources:
-        names = [(r.get("name"), r.get("format")) for r in resources]
-        raise ValueError(f"dataset 6099 無 CSV 資源，resources={names}")
+    csv_resources = _ndc_csv_resources(meta)
 
     last_err: Exception | None = None
-    for r in csv_resources:
+    for url, _name in csv_resources:
         try:
-            df = pd.read_csv(StringIO(_get(r["url"])))
+            df = pd.read_csv(StringIO(_get(url)))
         except Exception as exc:  # noqa: BLE001
             last_err = exc
             continue
@@ -250,7 +279,7 @@ def tw_cycle(start):
                 score_col = c
                 break
         if date_col is None or score_col is None:
-            last_err = ValueError(f"{r['url']} 找不到日期/對策信號欄位，欄位={list(df.columns)}")
+            last_err = ValueError(f"{url} 找不到日期/對策信號欄位，欄位={list(df.columns)}")
             continue
 
         idx = _parse_ndc_date(df[date_col])
@@ -258,7 +287,7 @@ def tw_cycle(start):
         out = out.dropna().sort_index()
         out = out[out.index >= pd.Timestamp(start)]
         if out.empty:
-            last_err = ValueError(f"{r['url']} 解析後於 {start} 之後無資料")
+            last_err = ValueError(f"{url} 解析後於 {start} 之後無資料")
             continue
         return out.rename("cycle")
 
