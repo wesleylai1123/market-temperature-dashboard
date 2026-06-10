@@ -153,7 +153,7 @@ jobs:
 
       # ── Step 5: Commit（選用）────────────────────────────────────────────────
       - name: Commit backtest_results.json
-        if: ${{ inputs.commit_results == 'true' }}
+        if: ${{ inputs.commit_results }}
         run: |
           cd ..
           git config user.name "github-actions[bot]"
