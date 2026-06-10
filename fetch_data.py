@@ -23,7 +23,7 @@
   估值   大盤本益比代理     FinMind TaiwanStockPER, data_id=2330（台積電權值龍頭）
   情緒   融資餘額          FinMind TaiwanStockTotalMarginPurchaseShortSale
   景氣   景氣對策信號       data.gov.tw 開放資料平台「景氣指標及燈號」(dataset 6099, 國發會)，
-                          免金鑰、CSV 格式，取對策信號分數欄位 (9-45) 最新一筆。
+                          免金鑰、ZIP 內 CSV，取對策信號分數欄位 (9-45) 最新一筆。
 """
 
 import csv
@@ -284,7 +284,7 @@ def _ndc_csv_texts(meta):
 
 def fetch_tw_cycle():
     """景氣對策信號：data.gov.tw 開放資料平台「景氣指標及燈號」(dataset 6099, 國發會) 的
-    對策信號分數 (9-45)，免金鑰、CSV 格式。
+    對策信號分數 (9-45)，免金鑰、ZIP 內 CSV。
 
     月頻、月底前後發布且會事後修正；回測時 scores.py 已對因子做月底 resample + lag
     shift，避免用到「當月尚未發布」的數值。
