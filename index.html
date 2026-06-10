@@ -97,6 +97,19 @@
   .warn { color: var(--amber); font-size: 11px; margin-top: 6px; }
 
   /* ── Backtest section ─────────────────────────────────────────── */
+  .bt-root { margin-top: 32px; display: none; }
+  .bt-root.loaded { display: block; }
+
+  /* Market tabs (shared by 回測/Portfolio/成長股 sections) */
+  .mkt-tabs { display: flex; gap: 8px; margin-bottom: 18px; }
+  .mkt-tab {
+    background: var(--panel); color: var(--muted); border: 1px solid var(--line);
+    border-radius: 999px; padding: 6px 16px; font-size: 13px; cursor: pointer;
+    font-family: inherit;
+  }
+  .mkt-tab:hover { color: var(--text); border-color: var(--accent); }
+  .mkt-tab.active { color: var(--text); background: var(--panel-2); border-color: var(--accent); font-weight: 600; }
+
   .backtest-section { margin-top: 32px; display: none; }
   .backtest-section.loaded { display: block; }
   .backtest-section > h2 { font-size: 16px; margin: 0 0 6px; }
@@ -107,6 +120,28 @@
     display: flex; align-items: baseline; gap: 10px;
   }
   .bt-market-title span { color: var(--muted); font-size: 12px; font-weight: 400; }
+  .bt-empty { color: var(--muted); font-size: 12px; padding: 12px 0; }
+
+  /* Series toggle checkboxes */
+  .series-toggles { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 0 0 10px; }
+  .series-toggle { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted); cursor: pointer; user-select: none; }
+  .series-toggle input { accent-color: var(--accent); cursor: pointer; }
+  .series-toggle.off { opacity: .45; }
+
+  /* Dropdown controls (Portfolio Universe × Strategy) */
+  .bt-controls { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; margin-bottom: 12px; }
+  .bt-controls label { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  .bt-select {
+    background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
+    border-radius: 8px; padding: 5px 10px; font-size: 12px; font-family: inherit; cursor: pointer;
+  }
+  .bt-select:focus { outline: none; border-color: var(--accent); }
+  .bt-uni-desc { color: var(--muted); font-size: 11px; margin: -4px 0 12px; }
+
+  /* Top-N slider (成長股 Agent) */
+  .topn-control { display: flex; align-items: center; gap: 10px; margin: 0 0 10px; font-size: 12px; color: var(--muted); }
+  .topn-control input[type=range] { width: 160px; accent-color: var(--accent); }
+  .topn-control b { color: var(--text); font-size: 13px; min-width: 56px; }
 
   /* Chart + table side-by-side on wide screens */
   .bt-layout { display: grid; grid-template-columns: 1fr 340px; gap: 16px; }
@@ -201,20 +236,34 @@
     </div>
   </div>
 
-  <!-- 回測比較（有 backtest_results.json 才顯示）-->
-  <div class="backtest-section" id="backtestSection">
-    <h2>📈 回測策略比較</h2>
-    <div class="bt-sub">市場溫度分數 × 各策略 vs 買進持有 · 月度再平衡</div>
-    <div id="backtestContent"></div>
-    <div class="bt-note" id="btNote"></div>
-    <div class="bt-gen-time" id="btGenTime"></div>
-  </div>
+  <!-- 回測 / Portfolio / 成長股（有 backtest_results.json 才顯示）-->
+  <div class="bt-root" id="btRoot">
+    <div class="mkt-tabs" id="mktTabs">
+      <button class="mkt-tab active" data-mkt="US">🇺🇸 美股</button>
+      <button class="mkt-tab" data-mkt="TW">🇹🇼 台股</button>
+    </div>
 
-  <!-- 成長股選股 Agent（backtest_results.json 含 growth 欄位才顯示）-->
-  <div class="backtest-section" id="growthSection">
-    <h2>🌱 成長股選股 Agent</h2>
-    <div class="bt-sub">規則式量化選股（TW：月營收YoY／US：12-1動能）· 每月 Top-N 等權重 vs 候選池等權重 vs 大盤</div>
-    <div id="growthContent"></div>
+    <div class="backtest-section" id="backtestSection">
+      <h2>📈 回測策略比較</h2>
+      <div class="bt-sub">市場溫度分數 × 各策略 vs 買進持有 · 月度再平衡</div>
+      <div id="backtestContent"></div>
+      <div class="bt-note" id="btNote"></div>
+      <div class="bt-gen-time" id="btGenTime"></div>
+    </div>
+
+    <!-- Portfolio 回測（backtest_results.json 含 portfolio 欄位才顯示）-->
+    <div class="backtest-section" id="portfolioSection">
+      <h2>📊 Portfolio 回測（Universe × Strategy）</h2>
+      <div class="bt-sub">多資產組合（板塊/因子輪動）× 策略 vs 100% 買進持有單一基準</div>
+      <div id="portfolioContent"></div>
+    </div>
+
+    <!-- 成長股選股 Agent（backtest_results.json 含 growth 欄位才顯示）-->
+    <div class="backtest-section" id="growthSection">
+      <h2>🌱 成長股選股 Agent</h2>
+      <div class="bt-sub">規則式量化選股（TW：月營收YoY／US：12-1動能）· 每月 Top-N 等權重 vs 候選池等權重 vs 大盤</div>
+      <div id="growthContent"></div>
+    </div>
   </div>
 
   <footer>
@@ -251,6 +300,18 @@ const SEED = {
 };
 
 let DATA = null;
+
+// ── 回測區互動狀態（市場切換 / 策略顯示 / Top-N / Portfolio 選擇）──────────────────
+const STATE = {
+  market: "US",
+  btHidden: { US: new Set(), TW: new Set() },     // 隱藏的曲線名稱（buyhold / 策略名）
+  growthTopN: { US: null, TW: null },             // null = 用資料預設 top_n
+  portfolio: { US: { universe: null, strategy: null }, TW: { universe: null, strategy: null } },
+};
+
+let BT_DATA = null;
+let GROWTH_DATA = null;
+let PORTFOLIO_DATA = null;
 
 // ── 策略顏色對照表 ─────────────────────────────────────────────────────────────
 const STRAT_COLORS = {
@@ -501,30 +562,81 @@ function drawSeriesChart(canvas, dates, series) {
   }
 }
 
-function drawEquityChart(canvas, mktData) {
+function drawEquityChart(canvas, mktData, hidden) {
+  hidden = hidden || new Set();
   const bh = mktData.buyhold_equity_monthly;
   const strategies = mktData.strategies || {};
   if (!bh || !bh.dates || bh.dates.length < 2) return;
 
-  const series = [
-    { name: "buyhold", label: "買進持有", values: bh.values, color: stratColor("buyhold"), dashed: true },
-    ...Object.entries(strategies).map(([name, s]) => ({
-      name, label: name, values: s.equity_monthly.values, color: stratColor(name), dashed: false,
-    })),
-  ];
+  const series = [];
+  if (!hidden.has("buyhold")) {
+    series.push({ name: "buyhold", label: "買進持有", values: bh.values, color: stratColor("buyhold"), dashed: true });
+  }
+  for (const [name, s] of Object.entries(strategies)) {
+    if (hidden.has(name)) continue;
+    series.push({ name, label: name, values: s.equity_monthly.values, color: stratColor(name), dashed: false });
+  }
+  const ctx = canvas.getContext("2d");
+  if (series.length === 0) { ctx.clearRect(0, 0, canvas.width, canvas.height); return; }
   drawSeriesChart(canvas, bh.dates, series);
 }
 
-function drawGrowthChart(canvas, g) {
-  const top = g.top_n_equity_monthly, ew = g.equal_weight_equity_monthly, bh = g.benchmark_equity_monthly;
-  if (!top || !top.dates || top.dates.length < 2) return;
-  const n = top.dates.length;
+function drawGrowthChart(canvas, g, recomputed, n) {
+  const ew = g.equal_weight_equity_monthly, bh = g.benchmark_equity_monthly;
+  if (!recomputed || !recomputed.dates || recomputed.dates.length < 2) return;
+  const len = recomputed.dates.length;
   const series = [
-    { name: "benchmark", label: "買進持有 " + g.benchmark, values: (bh?.values || []).slice(0, n), color: stratColor("buyhold"), dashed: true },
-    { name: "equal_weight", label: "候選池等權重", values: (ew?.values || []).slice(0, n), color: "#8b99ad", dashed: false },
-    { name: "top_n", label: `Top-${g.top_n} 選股`, values: top.values.slice(0, n), color: "#2ecc71", dashed: false },
+    { name: "benchmark", label: "買進持有 " + g.benchmark, values: (bh?.values || []).slice(0, len), color: stratColor("buyhold"), dashed: true },
+    { name: "equal_weight", label: "候選池等權重", values: (ew?.values || []).slice(0, len), color: "#8b99ad", dashed: false },
+    { name: "top_n", label: `Top-${n} 選股`, values: recomputed.values, color: "#2ecc71", dashed: false },
   ];
-  drawSeriesChart(canvas, top.dates.slice(0, n), series);
+  drawSeriesChart(canvas, recomputed.dates, series);
+}
+
+// ── KPI / Top-N 即時重算（JS 版 portfolio.py:_kpis + run_growth_backtest._equity_from_returns）──
+function kpisFromEquity(dates, values) {
+  if (!values || values.length < 2) return null;
+  const rets = [];
+  for (let i = 1; i < values.length; i++) rets.push(values[i] / values[i - 1] - 1);
+  const days = (new Date(dates[dates.length - 1]) - new Date(dates[0])) / 86400000;
+  const years = days / 365.25;
+  const cagr = years > 0 ? Math.pow(values[values.length - 1] / values[0], 1 / years) - 1 : 0;
+  const mean = rets.reduce((a, b) => a + b, 0) / rets.length;
+  const variance = rets.length > 1
+    ? rets.reduce((a, b) => a + (b - mean) ** 2, 0) / (rets.length - 1)
+    : 0;
+  const std = Math.sqrt(variance);
+  const sharpe = std > 0 ? (mean / std) * Math.sqrt(12) : 0;
+  let peak = values[0], maxDd = 0;
+  for (const v of values) { peak = Math.max(peak, v); maxDd = Math.min(maxDd, (v - peak) / peak); }
+  return { cagr, sharpe, max_dd: maxDd, final: values[values.length - 1], years };
+}
+
+function recomputeTopN(g, n) {
+  const detail = g.monthly_detail || [];
+  const txCost = g.tx_cost_oneway ?? 0;
+  const dates = detail.map(d => d.date);
+  const rets = [];
+  let prevSymbols = new Set();
+  for (const d of detail) {
+    const top = (d.ranking || []).slice(0, n);
+    const symbols = new Set(top.map(r => r.symbol));
+    const valid = top.filter(r => r.ret_pct != null);
+    let ret = 0;
+    if (valid.length > 0) {
+      const avg = valid.reduce((s, r) => s + r.ret_pct, 0) / valid.length;
+      let diff = 0;
+      const union = new Set([...symbols, ...prevSymbols]);
+      union.forEach(s => { if (symbols.has(s) !== prevSymbols.has(s)) diff++; });
+      const turnover = diff / Math.max(symbols.size, prevSymbols.size, 1);
+      ret = avg - turnover * txCost * 2 * 100;
+    }
+    rets.push(ret);
+    prevSymbols = symbols;
+  }
+  const values = [100];
+  for (let i = 1; i < rets.length; i++) values.push(values[i - 1] * (1 + rets[i] / 100));
+  return { dates, values };
 }
 
 // ── 回測結果渲染 ───────────────────────────────────────────────────────────────
@@ -532,149 +644,238 @@ function fmt(n, digits, suffix) {
   return (n * (suffix === "%" ? 100 : 1)).toFixed(digits) + (suffix || "");
 }
 
+// 顯示切換用的小核取方塊（曲線開關）
+function buildSeriesToggle(s, hidden, onChange) {
+  const label = document.createElement("label");
+  label.className = "series-toggle" + (hidden.has(s.name) ? " off" : "");
+  const cb = document.createElement("input");
+  cb.type = "checkbox";
+  cb.checked = !hidden.has(s.name);
+  cb.addEventListener("change", () => {
+    if (cb.checked) hidden.delete(s.name); else hidden.add(s.name);
+    label.classList.toggle("off", !cb.checked);
+    onChange();
+  });
+  label.appendChild(cb);
+  const dot = document.createElement("span");
+  dot.className = "color-dot";
+  dot.style.background = s.color;
+  label.appendChild(dot);
+  label.appendChild(document.createTextNode(s.label));
+  return label;
+}
+
+const BT_MKT_LABELS = { US: "美股 (SPY)", TW: "台股 (0050)" };
+
 function renderBacktest(btData) {
+  BT_DATA = btData;
   document.getElementById("backtestSection").classList.add("loaded");
-  const content = document.getElementById("backtestContent");
-  content.innerHTML = "";
-
-  const mktLabels = { US: "美股 (SPY)", TW: "台股 (0050)" };
-
-  for (const [mkt, mktData] of Object.entries(btData.markets || {})) {
-    const p = mktData.period;
-    const div = el("div", "bt-market");
-    div.appendChild(el("div", "bt-market-title",
-      (mktLabels[mkt] || mkt) +
-      `<span>${p.start} ~ ${p.end} &nbsp;${p.years.toFixed(1)} 年</span>`));
-
-    const layout = el("div", "bt-layout");
-
-    // ── Chart ──────────────────────────────────────────────────────────────
-    const chartWrap = el("div", "chart-wrap");
-    const canvas = document.createElement("canvas");
-    canvas.style.width = "100%";
-    chartWrap.appendChild(canvas);
-    layout.appendChild(chartWrap);
-
-    // ── KPI table ──────────────────────────────────────────────────────────
-    const tableWrap = el("div", "strat-table-wrap");
-    const table = el("table", "strat-table");
-
-    // Header
-    const thead = el("tr");
-    ["策略", "CAGR", "Sharpe", "MaxDD"].forEach(h => thead.appendChild(el("th", null, h)));
-    table.appendChild(thead);
-
-    // Buy-and-hold row
-    const bk = mktData.buyhold_kpis;
-    const bhRow = el("tr", "buyhold");
-    const bhDot = `<span class="color-dot" style="background:${stratColor("buyhold")}"></span>`;
-    bhRow.appendChild(el("td", null, bhDot + "買進持有"));
-    bhRow.appendChild(el("td", null, fmt(bk.cagr, 2, "%")));
-    bhRow.appendChild(el("td", null, bk.sharpe.toFixed(2)));
-    bhRow.appendChild(el("td", null, fmt(bk.max_dd, 2, "%")));
-    table.appendChild(bhRow);
-
-    // Strategy rows
-    const strategies = mktData.strategies || {};
-    for (const [name, s] of Object.entries(strategies)) {
-      const k = s.kpis;
-      const row = el("tr");
-      const dot = `<span class="color-dot" style="background:${stratColor(name)}"></span>`;
-      row.appendChild(el("td", null, dot + name));
-      // Highlight winner per metric vs buy-hold
-      const cagrBetter = k.cagr >= bk.cagr;
-      const sharpeBetter = k.sharpe >= bk.sharpe;
-      const ddBetter = k.max_dd > bk.max_dd; // less negative = better
-      row.appendChild(el("td", cagrBetter ? "kpi-win" : null, fmt(k.cagr, 2, "%")));
-      row.appendChild(el("td", sharpeBetter ? "kpi-win" : null, k.sharpe.toFixed(2)));
-      row.appendChild(el("td", ddBetter ? "kpi-win" : null, fmt(k.max_dd, 2, "%")));
-      table.appendChild(row);
-    }
-    tableWrap.appendChild(table);
-    layout.appendChild(tableWrap);
-    div.appendChild(layout);
-
-    // ── Trades accordion ───────────────────────────────────────────────────
-    const allTrades = [];
-    for (const [name, s] of Object.entries(strategies)) {
-      for (const t of (s.trades || [])) allTrades.push({ ...t, strategy: name });
-    }
-    allTrades.sort((a, b) => b.date.localeCompare(a.date));
-
-    if (allTrades.length > 0) {
-      const det = el("details", "trades-detail");
-      det.appendChild(el("summary", null, `▸ 換倉記錄（全策略合計 ${allTrades.length} 筆，最新在上）`));
-      for (const t of allTrades.slice(0, 30)) {
-        const row = el("div", "trade-row");
-        row.appendChild(el("span", "trade-date", t.date));
-        row.appendChild(el("span", "trade-strat", t.strategy));
-        row.appendChild(el("span", "act-" + t.action, t.action));
-        const chg = t.change >= 0 ? "+" + (t.change * 100).toFixed(0) : (t.change * 100).toFixed(0);
-        row.appendChild(el("span", "trade-weight", `→ ${(t.target_weight * 100).toFixed(0)}% (${chg}%)`));
-        det.appendChild(row);
-      }
-      div.appendChild(det);
-    }
-
-    content.appendChild(div);
-
-    // Draw chart after layout is painted
-    requestAnimationFrame(() => drawEquityChart(canvas, mktData));
-  }
 
   const genTime = btData.generated_at?.slice(0, 16).replace("T", " ") + " UTC";
   document.getElementById("btNote").innerHTML =
     "各策略共用相同合成分數序列，差異僅在分數→權重的映射方式。" +
     "若某策略 MaxDD 顯著低且 Sharpe 較高，代表該映射方式對風險控制有效。" +
-    "<br>新增策略：在 <code>backtest/strategies.py</code> 的 <code>REGISTRY</code> 新增一個函式即可。";
+    "<br>新增策略：在 <code>backtest/strategies.py</code> 的 <code>REGISTRY</code> 新增一個函式即可。" +
+    "<br>勾選/取消上方曲線可切換圖表顯示。";
   document.getElementById("btGenTime").textContent = "回測產生時間：" + genTime;
+
+  renderBacktestMarket();
+}
+
+function renderBacktestMarket() {
+  if (!BT_DATA) return;
+  const mkt = STATE.market;
+  const content = document.getElementById("backtestContent");
+  content.innerHTML = "";
+
+  const mktData = (BT_DATA.markets || {})[mkt];
+  if (!mktData) {
+    content.appendChild(el("div", "bt-empty", "此市場目前沒有回測結果。"));
+    return;
+  }
+
+  const p = mktData.period;
+  const div = el("div", "bt-market");
+  div.appendChild(el("div", "bt-market-title",
+    (BT_MKT_LABELS[mkt] || mkt) +
+    `<span>${p.start} ~ ${p.end} &nbsp;${p.years.toFixed(1)} 年</span>`));
+
+  // ── 曲線顯示切換 ───────────────────────────────────────────────────────────
+  const strategies = mktData.strategies || {};
+  const hidden = STATE.btHidden[mkt] ?? (STATE.btHidden[mkt] = new Set());
+  const toggles = el("div", "series-toggles");
+  const allSeries = [
+    { name: "buyhold", label: "買進持有", color: stratColor("buyhold") },
+    ...Object.keys(strategies).map(name => ({ name, label: name, color: stratColor(name) })),
+  ];
+
+  const layout = el("div", "bt-layout");
+
+  // ── Chart ──────────────────────────────────────────────────────────────
+  const chartWrap = el("div", "chart-wrap");
+  const canvas = document.createElement("canvas");
+  canvas.style.width = "100%";
+  chartWrap.appendChild(canvas);
+
+  for (const s of allSeries) {
+    toggles.appendChild(buildSeriesToggle(s, hidden, () => drawEquityChart(canvas, mktData, hidden)));
+  }
+  div.appendChild(toggles);
+  layout.appendChild(chartWrap);
+
+  // ── KPI table ──────────────────────────────────────────────────────────
+  const tableWrap = el("div", "strat-table-wrap");
+  const table = el("table", "strat-table");
+
+  // Header
+  const thead = el("tr");
+  ["策略", "CAGR", "Sharpe", "MaxDD"].forEach(h => thead.appendChild(el("th", null, h)));
+  table.appendChild(thead);
+
+  // Buy-and-hold row
+  const bk = mktData.buyhold_kpis;
+  const bhRow = el("tr", "buyhold");
+  const bhDot = `<span class="color-dot" style="background:${stratColor("buyhold")}"></span>`;
+  bhRow.appendChild(el("td", null, bhDot + "買進持有"));
+  bhRow.appendChild(el("td", null, fmt(bk.cagr, 2, "%")));
+  bhRow.appendChild(el("td", null, bk.sharpe.toFixed(2)));
+  bhRow.appendChild(el("td", null, fmt(bk.max_dd, 2, "%")));
+  table.appendChild(bhRow);
+
+  // Strategy rows
+  for (const [name, s] of Object.entries(strategies)) {
+    const k = s.kpis;
+    const row = el("tr");
+    const dot = `<span class="color-dot" style="background:${stratColor(name)}"></span>`;
+    row.appendChild(el("td", null, dot + name));
+    // Highlight winner per metric vs buy-hold
+    const cagrBetter = k.cagr >= bk.cagr;
+    const sharpeBetter = k.sharpe >= bk.sharpe;
+    const ddBetter = k.max_dd > bk.max_dd; // less negative = better
+    row.appendChild(el("td", cagrBetter ? "kpi-win" : null, fmt(k.cagr, 2, "%")));
+    row.appendChild(el("td", sharpeBetter ? "kpi-win" : null, k.sharpe.toFixed(2)));
+    row.appendChild(el("td", ddBetter ? "kpi-win" : null, fmt(k.max_dd, 2, "%")));
+    table.appendChild(row);
+  }
+  tableWrap.appendChild(table);
+  layout.appendChild(tableWrap);
+  div.appendChild(layout);
+
+  // ── Trades accordion ───────────────────────────────────────────────────
+  const allTrades = [];
+  for (const [name, s] of Object.entries(strategies)) {
+    for (const t of (s.trades || [])) allTrades.push({ ...t, strategy: name });
+  }
+  allTrades.sort((a, b) => b.date.localeCompare(a.date));
+
+  if (allTrades.length > 0) {
+    const det = el("details", "trades-detail");
+    det.appendChild(el("summary", null, `▸ 換倉記錄（全策略合計 ${allTrades.length} 筆，最新在上）`));
+    for (const t of allTrades.slice(0, 30)) {
+      const row = el("div", "trade-row");
+      row.appendChild(el("span", "trade-date", t.date));
+      row.appendChild(el("span", "trade-strat", t.strategy));
+      row.appendChild(el("span", "act-" + t.action, t.action));
+      const chg = t.change >= 0 ? "+" + (t.change * 100).toFixed(0) : (t.change * 100).toFixed(0);
+      row.appendChild(el("span", "trade-weight", `→ ${(t.target_weight * 100).toFixed(0)}% (${chg}%)`));
+      det.appendChild(row);
+    }
+    div.appendChild(det);
+  }
+
+  content.appendChild(div);
+
+  // Draw chart after layout is painted
+  requestAnimationFrame(() => drawEquityChart(canvas, mktData, hidden));
 }
 
 // ── 成長股選股 Agent 渲染 ─────────────────────────────────────────────────────
+const GROWTH_MKT_LABELS = { US: "美股（12-1 月動能）", TW: "台股（月營收YoY）" };
+
 function renderGrowth(growth) {
+  GROWTH_DATA = growth || {};
   document.getElementById("growthSection").classList.add("loaded");
+  renderGrowthMarket();
+}
+
+function renderGrowthMarket() {
+  if (!GROWTH_DATA) return;
+  const mkt = STATE.market;
   const content = document.getElementById("growthContent");
   content.innerHTML = "";
 
-  const mktLabels = { US: "美股（12-1 月動能）", TW: "台股（月營收YoY）" };
+  const g = GROWTH_DATA[mkt];
+  if (!g) {
+    content.appendChild(el("div", "bt-empty", "此市場目前沒有成長股選股結果。"));
+    return;
+  }
 
-  for (const [mkt, g] of Object.entries(growth || {})) {
-    const div = el("div", "bt-market");
-    div.appendChild(el("div", "bt-market-title",
-      (mktLabels[mkt] || mkt) + `<span>Top-${g.top_n} · ${g.start} 起</span>`));
+  const div = el("div", "bt-market");
+  div.appendChild(el("div", "bt-market-title",
+    (GROWTH_MKT_LABELS[mkt] || mkt) + `<span>${g.start} 起 · 候選池 ${g.candidates?.length ?? "?"} 檔</span>`));
 
-    // 最新一期選股
-    const dates = Object.keys(g.monthly_picks || {}).sort();
-    if (dates.length > 0) {
-      const latest = dates[dates.length - 1];
-      content.appendChild(el("div", "growth-picks-label", `最新選股（${latest.slice(0, 7)}）：`));
-      const picksRow = el("div", "growth-picks");
-      for (const p of g.monthly_picks[latest]) {
+  // ── Top-N 即時調整 ─────────────────────────────────────────────────────────
+  const maxN = Math.max(g.candidates?.length || 0, g.top_n || 1, 1);
+  const curN = STATE.growthTopN[mkt] ?? g.top_n ?? 5;
+  const topnRow = el("div", "topn-control");
+  topnRow.appendChild(document.createTextNode("Top-N："));
+  const slider = document.createElement("input");
+  slider.type = "range"; slider.min = "1"; slider.max = String(maxN); slider.value = String(curN);
+  const valB = document.createElement("b"); valB.textContent = `Top-${curN}`;
+  topnRow.appendChild(slider);
+  topnRow.appendChild(valB);
+  div.appendChild(topnRow);
+
+  // 最新一期選股
+  const picksLabel = el("div", "growth-picks-label", "");
+  const picksRow = el("div", "growth-picks");
+  div.appendChild(picksLabel);
+  div.appendChild(picksRow);
+
+  const layout = el("div", "bt-layout");
+
+  // Chart
+  const chartWrap = el("div", "chart-wrap");
+  const canvas = document.createElement("canvas");
+  canvas.style.width = "100%";
+  chartWrap.appendChild(canvas);
+  layout.appendChild(chartWrap);
+
+  // KPI table
+  const tableWrap = el("div", "strat-table-wrap");
+  const table = el("table", "strat-table");
+  tableWrap.appendChild(table);
+  layout.appendChild(tableWrap);
+  div.appendChild(layout);
+
+  content.appendChild(div);
+
+  function update(n) {
+    STATE.growthTopN[mkt] = n;
+    valB.textContent = `Top-${n}`;
+
+    const detail = g.monthly_detail || [];
+    const latest = detail[detail.length - 1];
+    picksLabel.textContent = latest ? `最新選股（${latest.date.slice(0, 7)}）：` : "";
+    picksRow.innerHTML = "";
+    if (latest) {
+      for (const r of (latest.ranking || []).slice(0, n)) {
         const tag = el("span", "growth-pick",
-          `${p.symbol}<span class="name">${p.name}</span><span class="factor">${p.factor > 0 ? "+" : ""}${p.factor}</span>`);
+          `${r.symbol}<span class="name">${r.name}</span><span class="factor">${r.factor > 0 ? "+" : ""}${r.factor}</span>`);
         picksRow.appendChild(tag);
       }
-      content.appendChild(picksRow);
     }
 
-    const layout = el("div", "bt-layout");
+    const recomputed = recomputeTopN(g, n);
+    const topKpis = kpisFromEquity(recomputed.dates, recomputed.values);
 
-    // Chart
-    const chartWrap = el("div", "chart-wrap");
-    const canvas = document.createElement("canvas");
-    canvas.style.width = "100%";
-    chartWrap.appendChild(canvas);
-    layout.appendChild(chartWrap);
-
-    // KPI table
-    const tableWrap = el("div", "strat-table-wrap");
-    const table = el("table", "strat-table");
+    table.innerHTML = "";
     const thead = el("tr");
     ["", "CAGR", "Sharpe", "MaxDD"].forEach(h => thead.appendChild(el("th", null, h)));
     table.appendChild(thead);
 
     const rows = [
-      [`Top-${g.top_n} 選股`, g.top_n_kpis, "#2ecc71"],
+      [`Top-${n} 選股`, topKpis, "#2ecc71"],
       ["候選池等權重", g.equal_weight_kpis, "#8b99ad"],
       [`買進持有 ${g.benchmark}`, g.benchmark_kpis, stratColor("buyhold")],
     ];
@@ -688,13 +889,147 @@ function renderGrowth(growth) {
       row.appendChild(el("td", null, fmt(k.max_dd, 2, "%")));
       table.appendChild(row);
     }
-    tableWrap.appendChild(table);
-    layout.appendChild(tableWrap);
-    div.appendChild(layout);
 
-    content.appendChild(div);
-    requestAnimationFrame(() => drawGrowthChart(canvas, g));
+    drawGrowthChart(canvas, g, recomputed, n);
   }
+
+  slider.addEventListener("input", () => update(parseInt(slider.value, 10)));
+  requestAnimationFrame(() => update(curN));
+}
+
+// ── Portfolio 回測渲染（Universe × Strategy）────────────────────────────────────
+function renderPortfolio(portfolio) {
+  PORTFOLIO_DATA = portfolio || {};
+  document.getElementById("portfolioSection").classList.add("loaded");
+  renderPortfolioMarket();
+}
+
+function renderPortfolioMarket() {
+  if (!PORTFOLIO_DATA) return;
+  const mkt = STATE.market;
+  const content = document.getElementById("portfolioContent");
+  content.innerHTML = "";
+
+  const p = PORTFOLIO_DATA[mkt];
+  const universeKeys = p ? Object.keys(p.universes || {}) : [];
+  if (!p || universeKeys.length === 0) {
+    content.appendChild(el("div", "bt-empty", "此市場目前沒有 Portfolio 回測結果。"));
+    return;
+  }
+
+  const st = STATE.portfolio[mkt];
+  if (!st.universe || !universeKeys.includes(st.universe)) st.universe = universeKeys[0];
+
+  // ── Universe / 策略下拉選單 ────────────────────────────────────────────────
+  const controls = el("div", "bt-controls");
+
+  const uniLabel = document.createElement("label");
+  uniLabel.appendChild(document.createTextNode("Universe："));
+  const uniSelect = document.createElement("select");
+  uniSelect.className = "bt-select";
+  for (const k of universeKeys) {
+    const opt = document.createElement("option");
+    opt.value = k; opt.textContent = k;
+    if (k === st.universe) opt.selected = true;
+    uniSelect.appendChild(opt);
+  }
+  uniLabel.appendChild(uniSelect);
+  controls.appendChild(uniLabel);
+
+  const stratLabel = document.createElement("label");
+  stratLabel.appendChild(document.createTextNode("策略："));
+  const stratSelect = document.createElement("select");
+  stratSelect.className = "bt-select";
+  stratLabel.appendChild(stratSelect);
+  controls.appendChild(stratLabel);
+
+  content.appendChild(controls);
+
+  const desc = el("div", "bt-uni-desc", "");
+  content.appendChild(desc);
+
+  const layout = el("div", "bt-layout");
+  const chartWrap = el("div", "chart-wrap");
+  const canvas = document.createElement("canvas");
+  canvas.style.width = "100%";
+  chartWrap.appendChild(canvas);
+  layout.appendChild(chartWrap);
+
+  const tableWrap = el("div", "strat-table-wrap");
+  const table = el("table", "strat-table");
+  tableWrap.appendChild(table);
+  layout.appendChild(tableWrap);
+  content.appendChild(layout);
+
+  function refreshStrategyOptions() {
+    const uni = p.universes[st.universe];
+    const stratKeys = Object.keys(uni.strategies || {});
+    if (!st.strategy || !stratKeys.includes(st.strategy)) st.strategy = stratKeys[0];
+    stratSelect.innerHTML = "";
+    for (const k of stratKeys) {
+      const opt = document.createElement("option");
+      opt.value = k; opt.textContent = k;
+      if (k === st.strategy) opt.selected = true;
+      stratSelect.appendChild(opt);
+    }
+  }
+
+  function update() {
+    const uni = p.universes[st.universe];
+    desc.textContent = uni.universe_description || "";
+    const strat = uni.strategies[st.strategy];
+    const bh = uni.buyhold_equity_monthly;
+
+    const series = [
+      { name: "buyhold", label: "買進持有 " + (uni.benchmark || ""), values: bh.values, color: stratColor("buyhold"), dashed: true },
+      { name: st.strategy, label: st.strategy, values: strat.equity_monthly.values, color: stratColor(st.strategy), dashed: false },
+    ];
+    drawSeriesChart(canvas, bh.dates, series);
+
+    table.innerHTML = "";
+    const thead = el("tr");
+    ["策略", "CAGR", "Sharpe", "MaxDD"].forEach(h => thead.appendChild(el("th", null, h)));
+    table.appendChild(thead);
+
+    const bk = uni.buyhold_kpis;
+    const bhRow = el("tr", "buyhold");
+    bhRow.appendChild(el("td", null, `<span class="color-dot" style="background:${stratColor("buyhold")}"></span>買進持有 ${uni.benchmark || ""}`));
+    bhRow.appendChild(el("td", null, fmt(bk.cagr, 2, "%")));
+    bhRow.appendChild(el("td", null, bk.sharpe.toFixed(2)));
+    bhRow.appendChild(el("td", null, fmt(bk.max_dd, 2, "%")));
+    table.appendChild(bhRow);
+
+    const k = strat.kpis;
+    const row = el("tr");
+    row.appendChild(el("td", null, `<span class="color-dot" style="background:${stratColor(st.strategy)}"></span>${st.strategy}`));
+    row.appendChild(el("td", k.cagr >= bk.cagr ? "kpi-win" : null, fmt(k.cagr, 2, "%")));
+    row.appendChild(el("td", k.sharpe >= bk.sharpe ? "kpi-win" : null, k.sharpe.toFixed(2)));
+    row.appendChild(el("td", k.max_dd > bk.max_dd ? "kpi-win" : null, fmt(k.max_dd, 2, "%")));
+    table.appendChild(row);
+
+    if (strat.strategy_description) {
+      let descNote = content.querySelector(".strat-desc-note");
+      if (!descNote) {
+        descNote = el("div", "bt-uni-desc strat-desc-note", "");
+        content.appendChild(descNote);
+      }
+      descNote.textContent = "策略：" + strat.strategy_description;
+    }
+  }
+
+  uniSelect.addEventListener("change", () => {
+    st.universe = uniSelect.value;
+    st.strategy = null;
+    refreshStrategyOptions();
+    update();
+  });
+  stratSelect.addEventListener("change", () => {
+    st.strategy = stratSelect.value;
+    update();
+  });
+
+  refreshStrategyOptions();
+  requestAnimationFrame(update);
 }
 
 // ── 資料載入 ───────────────────────────────────────────────────────────────────
@@ -723,12 +1058,27 @@ async function boot() {
     const res = await fetch("backtest_results.json", { cache: "no-store" });
     if (!res.ok) throw new Error("HTTP " + res.status);
     const btData = await res.json();
-    renderBacktest(btData);
+    if (btData.markets) renderBacktest(btData);
+    if (btData.portfolio) renderPortfolio(btData.portfolio);
     if (btData.growth) renderGrowth(btData.growth);
+    if (btData.markets || btData.portfolio || btData.growth) {
+      document.getElementById("btRoot").classList.add("loaded");
+    }
   } catch {
     // 沒有回測結果時靜默隱藏
   }
 }
+
+// ── 市場切換 Tab（同時切換回測 / Portfolio / 成長股三個區塊）────────────────────
+document.getElementById("mktTabs").addEventListener("click", (ev) => {
+  const btn = ev.target.closest(".mkt-tab");
+  if (!btn || btn.classList.contains("active")) return;
+  STATE.market = btn.dataset.mkt;
+  document.querySelectorAll("#mktTabs .mkt-tab").forEach(b => b.classList.toggle("active", b === btn));
+  renderBacktestMarket();
+  renderPortfolioMarket();
+  renderGrowthMarket();
+});
 
 boot();
 </script>

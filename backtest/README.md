@@ -90,3 +90,21 @@ python run_growth_backtest.py --market US --start 2025-12-01 --top-n 5 --output-
 `make_demo_data.py` 產生的合成資料做離線測試。`merge_results.py` 加 `--growth-us`/
 `--growth-tw` 可把結果併入 `backtest_results.json`，儀表板會顯示「最新選股」與
 Top-N vs 等權重 vs 大盤的權益曲線/KPI。
+
+## 儀表板的回測互動（index.html）
+
+`backtest_results.json` 存在時，儀表板會在主頁下方顯示一個可互動的回測區塊：
+
+- **市場切換 Tab**：美股／台股分頁，三個子區塊（單資產回測、Portfolio、成長股 Agent）
+  跟著切換，避免雙市場結果全部疊在同一頁。
+- **策略/曲線開關**：單資產回測圖表上方有每條曲線（買進持有＋各策略）的勾選框，
+  可單獨顯示/隱藏，方便比較。
+- **Portfolio (Universe × Strategy)**：若 `backtest_results.json` 含 `portfolio` 欄位
+  （由 `merge_results.py --portfolio-us/--portfolio-tw` 併入），會顯示 Universe 與
+  策略的下拉選單，即時切換對應的權益曲線與 KPI。
+- **成長股 Top-N 即時調整**：拖動滑桿調整 Top-N（1 ~ 候選池大小），前端會用
+  `monthly_detail[].ranking`（每月完整排名 + 當月報酬）即時重算 Top-N 權益曲線與
+  KPI（CAGR/Sharpe/MaxDD），不必重跑 Python。換手成本沿用 `tx_cost_oneway`。
+
+以上皆為純前端計算，`run_growth_backtest.py` 需確保輸出含 `monthly_detail[].ranking`、
+`top_n`、`tx_cost_oneway`、`candidates` 等欄位（已內建）。

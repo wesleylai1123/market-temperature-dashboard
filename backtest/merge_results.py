@@ -6,6 +6,8 @@
         --tw  backtest/results/tw_results.json \\
         --growth-us backtest/results/us_growth.json \\
         --growth-tw backtest/results/tw_growth.json \\
+        --portfolio-us backtest/results/us_portfolio.json \\
+        --portfolio-tw backtest/results/tw_portfolio.json \\
         --out backtest_results.json
 """
 
@@ -17,26 +19,31 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 
+def _load_pair(us_path: str | None, tw_path: str | None, label: str) -> dict:
+    out: dict = {}
+    for mkt, path in [("US", us_path), ("TW", tw_path)]:
+        if path and Path(path).exists():
+            out[mkt] = json.loads(Path(path).read_text("utf-8"))
+            print(f"  ✅ {label}{mkt}: {path}")
+    return out
+
+
 def merge(
     us_path: str | None,
     tw_path: str | None,
     out_path: str,
     growth_us_path: str | None = None,
     growth_tw_path: str | None = None,
+    portfolio_us_path: str | None = None,
+    portfolio_tw_path: str | None = None,
 ) -> None:
-    markets: dict = {}
-    for mkt, path in [("US", us_path), ("TW", tw_path)]:
-        if path and Path(path).exists():
-            markets[mkt] = json.loads(Path(path).read_text("utf-8"))
-            print(f"  ✅ {mkt}: {path}")
-        else:
-            print(f"  ⚠ {mkt}: 無資料（{path}）")
+    markets = _load_pair(us_path, tw_path, "")
+    for mkt in ("US", "TW"):
+        if mkt not in markets:
+            print(f"  ⚠ {mkt}: 無資料")
 
-    growth: dict = {}
-    for mkt, path in [("US", growth_us_path), ("TW", growth_tw_path)]:
-        if path and Path(path).exists():
-            growth[mkt] = json.loads(Path(path).read_text("utf-8"))
-            print(f"  ✅ growth {mkt}: {path}")
+    growth = _load_pair(growth_us_path, growth_tw_path, "growth ")
+    portfolio = _load_pair(portfolio_us_path, portfolio_tw_path, "portfolio ")
 
     if not markets:
         print("沒有任何市場結果，略過輸出。")
@@ -48,6 +55,8 @@ def merge(
     }
     if growth:
         combined["growth"] = growth
+    if portfolio:
+        combined["portfolio"] = portfolio
 
     Path(out_path).write_text(
         json.dumps(combined, ensure_ascii=False, indent=2), encoding="utf-8"
@@ -61,9 +70,15 @@ def main() -> None:
     ap.add_argument("--tw", default=None)
     ap.add_argument("--growth-us", default=None)
     ap.add_argument("--growth-tw", default=None)
+    ap.add_argument("--portfolio-us", default=None)
+    ap.add_argument("--portfolio-tw", default=None)
     ap.add_argument("--out", default="backtest_results.json")
     args = ap.parse_args()
-    merge(args.us, args.tw, args.out, args.growth_us, args.growth_tw)
+    merge(
+        args.us, args.tw, args.out,
+        args.growth_us, args.growth_tw,
+        args.portfolio_us, args.portfolio_tw,
+    )
 
 
 if __name__ == "__main__":

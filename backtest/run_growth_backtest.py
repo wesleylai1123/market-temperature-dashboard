@@ -235,12 +235,26 @@ def backtest(
         top_n_rets[ret_date] = top_ret
         ew_rets[ret_date] = ew_ret
 
+        # 完整排名（含每檔當月實現報酬），供前端互動調整 Top-N 即時重算
+        ranking = [
+            {
+                "symbol": s,
+                "name": CANDIDATE_NAMES.get(s, s),
+                "factor": round(float(v), 2),
+                "ret_pct": (round(float(price_ret.loc[ret_date, s]) * 100, 2)
+                            if s in price_ret.columns and not pd.isna(price_ret.loc[ret_date, s])
+                            else None),
+            }
+            for s, v in ranked.items()
+        ]
+
         monthly_detail.append({
             "date": ret_date.strftime("%Y-%m-%d"),
             "picks": [
                 {"symbol": s, "name": CANDIDATE_NAMES.get(s, s), "factor": round(float(ranked[s]), 2)}
                 for s in picks
             ],
+            "ranking": ranking,
             "top_n_ret_pct": round(top_ret * 100, 2),
             "equal_weight_ret_pct": round(ew_ret * 100, 2),
         })
@@ -372,6 +386,8 @@ def run(market: str, start: str, top_n: int, lag_months: int,
             "start": start,
             "top_n": top_n,
             "lag_months": lag_months,
+            "init_cash": INIT_CASH,
+            "tx_cost_oneway": TX_COST_ONEWAY,
             "candidates": [{"symbol": s, "name": CANDIDATE_NAMES.get(s, s)} for s in candidates],
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "monthly_picks": {

@@ -101,13 +101,6 @@ jobs:
             echo '```' >> "$GITHUB_STEP_SUMMARY"
           done
 
-      - name: Merge single-asset → backtest_results.json
-        run: |
-          MERGE_ARGS="--us results/us_results.json --tw results/tw_results.json --out ../backtest_results.json"
-          if [ -f results/us_growth.json ]; then MERGE_ARGS="$MERGE_ARGS --growth-us results/us_growth.json"; fi
-          if [ -f results/tw_growth.json ]; then MERGE_ARGS="$MERGE_ARGS --growth-tw results/tw_growth.json"; fi
-          python merge_results.py $MERGE_ARGS
-
       # ── Step 3: 多資產 Portfolio 回測（選用）────────────────────────────────
       - name: Run portfolio backtest
         if: ${{ inputs.universe != '' }}
@@ -148,7 +141,17 @@ jobs:
 
           echo '```' >> "$GITHUB_STEP_SUMMARY"
 
-      # ── Step 4: Commit（選用）────────────────────────────────────────────────
+      # ── Step 4: 合併所有結果 → backtest_results.json ──────────────────────────
+      - name: Merge results → backtest_results.json
+        run: |
+          MERGE_ARGS="--us results/us_results.json --tw results/tw_results.json --out ../backtest_results.json"
+          if [ -f results/us_growth.json ]; then MERGE_ARGS="$MERGE_ARGS --growth-us results/us_growth.json"; fi
+          if [ -f results/tw_growth.json ]; then MERGE_ARGS="$MERGE_ARGS --growth-tw results/tw_growth.json"; fi
+          if [ -f results/us_portfolio.json ]; then MERGE_ARGS="$MERGE_ARGS --portfolio-us results/us_portfolio.json"; fi
+          if [ -f results/tw_portfolio.json ]; then MERGE_ARGS="$MERGE_ARGS --portfolio-tw results/tw_portfolio.json"; fi
+          python merge_results.py $MERGE_ARGS
+
+      # ── Step 5: Commit（選用）────────────────────────────────────────────────
       - name: Commit backtest_results.json
         if: ${{ inputs.commit_results == 'true' }}
         run: |
