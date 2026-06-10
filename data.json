@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-06-09T23:51:09Z",
+  "updated_at": "2026-06-10T16:15:19Z",
   "note": "種子數據。GitHub Actions 會以 fetch_data.py 更新 value/stale/updated_at；其餘欄位(desc/cal/invert…)由人維護。",
   "dimensions": [
     "valuation",
@@ -41,7 +41,7 @@
         },
         "sentiment": {
           "label": "情緒 · CNN 恐懼貪婪",
-          "value": 33.4,
+          "value": 29.2,
           "unit": "",
           "cal_min": 0,
           "cal_max": 100,
@@ -497,7 +497,7 @@
       "factors": {
         "valuation": {
           "label": "估值 · 台積電本益比(大盤代理)",
-          "value": 30.99,
+          "value": 30.32,
           "unit": "x",
           "cal_min": 12,
           "cal_max": 32,
@@ -709,7 +709,7 @@
         },
         "sentiment": {
           "label": "情緒 · 融資餘額",
-          "value": 5638.8,
+          "value": 5468.1,
           "unit": "億",
           "cal_min": 2000,
           "cal_max": 8000,
@@ -921,7 +921,7 @@
         },
         "cycle": {
           "label": "景氣 · 國發會景氣對策信號",
-          "value": 28.0,
+          "value": 39.0,
           "unit": "分",
           "cal_min": 9,
           "cal_max": 45,
@@ -929,7 +929,7 @@
           "direction": "紅燈(高分) → 防禦 / 藍燈(低分) → 逆向加碼",
           "desc": "國發會景氣對策信號綜合分數 9–45。藍燈(低)=景氣谷底可逆向加碼；紅燈(高)=過熱轉防禦。台灣特有、散戶實用。",
           "source": "data.gov.tw 景氣指標及燈號 (dataset 6099, 國發會)",
-          "stale": true,
+          "stale": false,
           "pctile_ref": [
             10.0,
             11.0,
