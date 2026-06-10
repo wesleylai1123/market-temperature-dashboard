@@ -148,6 +148,13 @@
   .bt-note { color: var(--muted); font-size: 11px; margin-top: 10px; line-height: 1.6; }
   .bt-gen-time { color: #5e6b80; font-size: 10px; margin-top: 6px; }
 
+  /* Growth agent picks */
+  .growth-picks-label { color: var(--muted); font-size: 11px; margin: 10px 0 6px; }
+  .growth-picks { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+  .growth-pick { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; font-size: 12px; }
+  .growth-pick .name { color: var(--muted); margin-left: 4px; }
+  .growth-pick .factor { color: var(--accent); margin-left: 6px; font-variant-numeric: tabular-nums; }
+
   /* ── Footer ───────────────────────────────────────────────────── */
   footer { margin-top: 30px; color: var(--muted); font-size: 12px; border-top: 1px solid var(--line); padding-top: 16px; }
   footer code { background: var(--panel-2); padding: 1px 6px; border-radius: 6px; color: var(--text); }
@@ -201,6 +208,13 @@
     <div id="backtestContent"></div>
     <div class="bt-note" id="btNote"></div>
     <div class="bt-gen-time" id="btGenTime"></div>
+  </div>
+
+  <!-- 成長股選股 Agent（backtest_results.json 含 growth 欄位才顯示）-->
+  <div class="backtest-section" id="growthSection">
+    <h2>🌱 成長股選股 Agent</h2>
+    <div class="bt-sub">規則式量化選股（TW：月營收YoY／US：12-1動能）· 每月 Top-N 等權重 vs 候選池等權重 vs 大盤</div>
+    <div id="growthContent"></div>
   </div>
 
   <footer>
@@ -410,10 +424,8 @@ document.getElementById("resetWeights").addEventListener("click", () => {
 });
 
 // ── 回測圖表（Canvas，多策略）────────────────────────────────────────────────
-function drawEquityChart(canvas, mktData) {
-  const bh = mktData.buyhold_equity_monthly;
-  const strategies = mktData.strategies || {};
-  if (!bh || !bh.dates || bh.dates.length < 2) return;
+function drawSeriesChart(canvas, dates, series) {
+  if (!dates || dates.length < 2) return;
 
   const dpr = window.devicePixelRatio || 1;
   const W = canvas.clientWidth || 480;
@@ -427,16 +439,7 @@ function drawEquityChart(canvas, mktData) {
   const cW = W - PAD.left - PAD.right;
   const cH = H - PAD.top - PAD.bottom;
 
-  // Collect all series
-  const allSeries = [
-    { name: "buyhold", values: bh.values, color: stratColor("buyhold") },
-    ...Object.entries(strategies).map(([name, s]) => ({
-      name, values: s.equity_monthly.values, color: stratColor(name),
-    })),
-  ];
-  const dates = bh.dates;
-
-  const allVals = allSeries.flatMap(s => s.values);
+  const allVals = series.flatMap(s => s.values);
   const minV = Math.min(...allVals) * 0.97;
   const maxV = Math.max(...allVals) * 1.03;
 
@@ -471,14 +474,13 @@ function drawEquityChart(canvas, mktData) {
     }
   });
 
-  // Lines (buy-hold first = bottom layer)
-  for (const series of allSeries) {
-    const isBh = series.name === "buyhold";
-    ctx.strokeStyle = series.color;
-    ctx.lineWidth = isBh ? 1.5 : 2;
-    ctx.setLineDash(isBh ? [4, 3] : []);
+  // Lines (dashed series first = bottom layer)
+  for (const s of [...series].sort((a, b) => (b.dashed ? 1 : 0) - (a.dashed ? 1 : 0))) {
+    ctx.strokeStyle = s.color;
+    ctx.lineWidth = s.dashed ? 1.5 : 2;
+    ctx.setLineDash(s.dashed ? [4, 3] : []);
     ctx.beginPath();
-    series.values.forEach((v, i) => {
+    s.values.forEach((v, i) => {
       i === 0 ? ctx.moveTo(px(i), py(v)) : ctx.lineTo(px(i), py(v));
     });
     ctx.stroke();
@@ -489,15 +491,40 @@ function drawEquityChart(canvas, mktData) {
   let lx = PAD.left;
   const ly = 12;
   ctx.font = "10px sans-serif"; ctx.textAlign = "left";
-  for (const s of allSeries) {
-    const label = s.name === "buyhold" ? "買進持有" : s.name;
+  for (const s of series) {
     ctx.fillStyle = s.color;
-    ctx.fillRect(lx, ly - 3, 16, s.name === "buyhold" ? 1.5 : 2);
-    ctx.fillStyle = s.name === "buyhold" ? "#8b99ad" : "#e6edf6";
-    ctx.fillText(label, lx + 20, ly + 4);
-    lx += ctx.measureText(label).width + 36;
+    ctx.fillRect(lx, ly - 3, 16, s.dashed ? 1.5 : 2);
+    ctx.fillStyle = s.dashed ? "#8b99ad" : "#e6edf6";
+    ctx.fillText(s.label, lx + 20, ly + 4);
+    lx += ctx.measureText(s.label).width + 36;
     if (lx > W - 60) { lx = PAD.left; }  // wrap if needed
   }
+}
+
+function drawEquityChart(canvas, mktData) {
+  const bh = mktData.buyhold_equity_monthly;
+  const strategies = mktData.strategies || {};
+  if (!bh || !bh.dates || bh.dates.length < 2) return;
+
+  const series = [
+    { name: "buyhold", label: "買進持有", values: bh.values, color: stratColor("buyhold"), dashed: true },
+    ...Object.entries(strategies).map(([name, s]) => ({
+      name, label: name, values: s.equity_monthly.values, color: stratColor(name), dashed: false,
+    })),
+  ];
+  drawSeriesChart(canvas, bh.dates, series);
+}
+
+function drawGrowthChart(canvas, g) {
+  const top = g.top_n_equity_monthly, ew = g.equal_weight_equity_monthly, bh = g.benchmark_equity_monthly;
+  if (!top || !top.dates || top.dates.length < 2) return;
+  const n = top.dates.length;
+  const series = [
+    { name: "benchmark", label: "買進持有 " + g.benchmark, values: (bh?.values || []).slice(0, n), color: stratColor("buyhold"), dashed: true },
+    { name: "equal_weight", label: "候選池等權重", values: (ew?.values || []).slice(0, n), color: "#8b99ad", dashed: false },
+    { name: "top_n", label: `Top-${g.top_n} 選股`, values: top.values.slice(0, n), color: "#2ecc71", dashed: false },
+  ];
+  drawSeriesChart(canvas, top.dates.slice(0, n), series);
 }
 
 // ── 回測結果渲染 ───────────────────────────────────────────────────────────────
@@ -603,6 +630,73 @@ function renderBacktest(btData) {
   document.getElementById("btGenTime").textContent = "回測產生時間：" + genTime;
 }
 
+// ── 成長股選股 Agent 渲染 ─────────────────────────────────────────────────────
+function renderGrowth(growth) {
+  document.getElementById("growthSection").classList.add("loaded");
+  const content = document.getElementById("growthContent");
+  content.innerHTML = "";
+
+  const mktLabels = { US: "美股（12-1 月動能）", TW: "台股（月營收YoY）" };
+
+  for (const [mkt, g] of Object.entries(growth || {})) {
+    const div = el("div", "bt-market");
+    div.appendChild(el("div", "bt-market-title",
+      (mktLabels[mkt] || mkt) + `<span>Top-${g.top_n} · ${g.start} 起</span>`));
+
+    // 最新一期選股
+    const dates = Object.keys(g.monthly_picks || {}).sort();
+    if (dates.length > 0) {
+      const latest = dates[dates.length - 1];
+      content.appendChild(el("div", "growth-picks-label", `最新選股（${latest.slice(0, 7)}）：`));
+      const picksRow = el("div", "growth-picks");
+      for (const p of g.monthly_picks[latest]) {
+        const tag = el("span", "growth-pick",
+          `${p.symbol}<span class="name">${p.name}</span><span class="factor">${p.factor > 0 ? "+" : ""}${p.factor}</span>`);
+        picksRow.appendChild(tag);
+      }
+      content.appendChild(picksRow);
+    }
+
+    const layout = el("div", "bt-layout");
+
+    // Chart
+    const chartWrap = el("div", "chart-wrap");
+    const canvas = document.createElement("canvas");
+    canvas.style.width = "100%";
+    chartWrap.appendChild(canvas);
+    layout.appendChild(chartWrap);
+
+    // KPI table
+    const tableWrap = el("div", "strat-table-wrap");
+    const table = el("table", "strat-table");
+    const thead = el("tr");
+    ["", "CAGR", "Sharpe", "MaxDD"].forEach(h => thead.appendChild(el("th", null, h)));
+    table.appendChild(thead);
+
+    const rows = [
+      [`Top-${g.top_n} 選股`, g.top_n_kpis, "#2ecc71"],
+      ["候選池等權重", g.equal_weight_kpis, "#8b99ad"],
+      [`買進持有 ${g.benchmark}`, g.benchmark_kpis, stratColor("buyhold")],
+    ];
+    for (const [label, k, color] of rows) {
+      if (!k || k.cagr === undefined) continue;
+      const row = el("tr");
+      const dot = `<span class="color-dot" style="background:${color}"></span>`;
+      row.appendChild(el("td", null, dot + label));
+      row.appendChild(el("td", null, fmt(k.cagr, 2, "%")));
+      row.appendChild(el("td", null, k.sharpe.toFixed(2)));
+      row.appendChild(el("td", null, fmt(k.max_dd, 2, "%")));
+      table.appendChild(row);
+    }
+    tableWrap.appendChild(table);
+    layout.appendChild(tableWrap);
+    div.appendChild(layout);
+
+    content.appendChild(div);
+    requestAnimationFrame(() => drawGrowthChart(canvas, g));
+  }
+}
+
 // ── 資料載入 ───────────────────────────────────────────────────────────────────
 async function boot() {
   try {
@@ -628,7 +722,9 @@ async function boot() {
   try {
     const res = await fetch("backtest_results.json", { cache: "no-store" });
     if (!res.ok) throw new Error("HTTP " + res.status);
-    renderBacktest(await res.json());
+    const btData = await res.json();
+    renderBacktest(btData);
+    if (btData.growth) renderGrowth(btData.growth);
   } catch {
     // 沒有回測結果時靜默隱藏
   }

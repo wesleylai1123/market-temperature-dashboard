@@ -15,6 +15,14 @@ on:
         description: "Portfolio Universe（逗號，留空=不跑 portfolio 回測）：us_sector,us_factor,tw_etf"
         default: ""
         required: false
+      growth:
+        description: "成長股選股 Agent 回測（逗號，留空=不跑）：US,TW"
+        default: ""
+        required: false
+      growth_top_n:
+        description: "成長股 Agent 每月選股數"
+        default: "5"
+        required: false
       commit_results:
         description: "將 backtest_results.json 提交回儲存庫（供儀表板顯示）"
         default: "false"
@@ -74,12 +82,31 @@ jobs:
             fi
           done
 
+      # ── Step 2.5: 成長股選股 Agent 回測（選用）──────────────────────────────
+      - name: Run growth agent backtest
+        if: ${{ inputs.growth != '' }}
+        env:
+          FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }}
+        run: |
+          echo "## 成長股選股 Agent 回測" >> "$GITHUB_STEP_SUMMARY"
+          GROWTH_MARKETS=$(echo "${{ inputs.growth }}" | tr ',' '\n' | tr 'a-z' 'A-Z')
+          for mkt in $GROWTH_MARKETS; do
+            lower=$(echo "$mkt" | tr 'A-Z' 'a-z')
+            echo "### $mkt" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            python run_growth_backtest.py --market "$mkt" --start "${{ inputs.start }}" \
+              --top-n "${{ inputs.growth_top_n }}" \
+              --output-json "results/${lower}_growth.json" \
+              | tee -a "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          done
+
       - name: Merge single-asset → backtest_results.json
         run: |
-          python merge_results.py \
-            --us results/us_results.json \
-            --tw results/tw_results.json \
-            --out ../backtest_results.json
+          MERGE_ARGS="--us results/us_results.json --tw results/tw_results.json --out ../backtest_results.json"
+          if [ -f results/us_growth.json ]; then MERGE_ARGS="$MERGE_ARGS --growth-us results/us_growth.json"; fi
+          if [ -f results/tw_growth.json ]; then MERGE_ARGS="$MERGE_ARGS --growth-tw results/tw_growth.json"; fi
+          python merge_results.py $MERGE_ARGS
 
       # ── Step 3: 多資產 Portfolio 回測（選用）────────────────────────────────
       - name: Run portfolio backtest

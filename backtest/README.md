@@ -66,3 +66,27 @@ python run_backtest.py --market TW --price data/tw_price.csv --factors data/tw_f
 - `score_of` 用固定校準區間線性映射（與儀表板一致、無 lookahead）。進階版可改「擴張窗
   百分位」讓標準化更貼合歷史分布（見根 README 坑 1）。
 - 可加交易成本/滑價、改變再平衡頻率、或把分數做成連續 vs 三檔燈號比較。
+
+## 成長股選股 Agent（`growth_agent.py`）
+
+規則式（非 LLM）量化選股 agent，每月依因子排名候選池，選出 Top-N：
+
+- **TW**：月營收年增率（FinMind `TaiwanStockMonthRevenue`），`shift(lag_months)` 防公布落差。
+- **US**：12-1 月價格動能（排除最近 1 個月，Jegadeesh-Titman 動能因子）。
+
+`run_growth_backtest.py` 驗證選股是否真的有 alpha：每月用「上一期」因子排名決定本期持股
+（雙重防 lookahead），比較三條曲線：
+
+1. Top-N 選股（等權重、每月換股）
+2. 候選池等權重買進持有（不選股，看選股本身的價值）
+3. 大盤 benchmark（TW: 0050 / US: SPY）
+
+```bash
+python run_growth_backtest.py --market TW --start 2025-12-01 --top-n 5
+python run_growth_backtest.py --market US --start 2025-12-01 --top-n 5 --output-json results/us_growth.json
+```
+
+`--skip-fetch` 可改用本地快取（`data/price_*.csv`、`data/revenue_*.csv`），搭配
+`make_demo_data.py` 產生的合成資料做離線測試。`merge_results.py` 加 `--growth-us`/
+`--growth-tw` 可把結果併入 `backtest_results.json`，儀表板會顯示「最新選股」與
+Top-N vs 等權重 vs 大盤的權益曲線/KPI。

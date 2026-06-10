@@ -4,6 +4,8 @@
   - price_SPY.csv, price_QQQ.csv, price_XLK.csv, price_XLU.csv, price_XLV.csv
   - price_0050.csv, price_0056.csv
   - us_factors.csv, tw_factors.csv（合成因子）
+  - price_<成長股候選代號>.csv（10 檔 TW + 10 檔 US，含 start 前 15 個月歷史）
+  - revenue_<TW代號>.csv（10 檔 TW 候選股合成月營收，含 start 前 27 個月歷史）
 
 用法：
     python make_demo_data.py --start 2025-12-01
@@ -51,6 +53,38 @@ TW_FACTOR_SEED = {
     "sentiment": 5510.0, # 融資餘額(億)
     "rate":      0.0,    # 外資買賣超
 }
+
+# 成長股候選池（同 growth_agent.CANDIDATES）：價格走勢依「成長強弱」分散，
+# 讓 Top-N 動能/營收YoY 排名與等權重池子有顯著差異，便於驗證選股是否有 alpha。
+TW_GROWTH = {
+    "2330": {"mu": 0.18, "sigma": 0.22, "start": 1000.0, "rev_base": 2200.0, "rev_growth": 0.28, "rev_sigma": 0.05},
+    "2454": {"mu": 0.10, "sigma": 0.25, "start": 1100.0, "rev_base": 500.0,  "rev_growth": 0.15, "rev_sigma": 0.06},
+    "3034": {"mu": 0.15, "sigma": 0.28, "start": 600.0,  "rev_base": 80.0,   "rev_growth": 0.22, "rev_sigma": 0.08},
+    "2379": {"mu": 0.08, "sigma": 0.24, "start": 500.0,  "rev_base": 60.0,   "rev_growth": 0.10, "rev_sigma": 0.07},
+    "3008": {"mu": 0.02, "sigma": 0.20, "start": 2500.0, "rev_base": 90.0,   "rev_growth": -0.05, "rev_sigma": 0.09},
+    "2382": {"mu": 0.12, "sigma": 0.23, "start": 280.0,  "rev_base": 1300.0, "rev_growth": 0.18, "rev_sigma": 0.06},
+    "2317": {"mu": 0.06, "sigma": 0.18, "start": 200.0,  "rev_base": 5800.0, "rev_growth": 0.06, "rev_sigma": 0.05},
+    "6669": {"mu": 0.30, "sigma": 0.35, "start": 1800.0, "rev_base": 250.0,  "rev_growth": 0.45, "rev_sigma": 0.10},
+    "3231": {"mu": 0.25, "sigma": 0.30, "start": 100.0,  "rev_base": 700.0,  "rev_growth": 0.35, "rev_sigma": 0.08},
+    "2308": {"mu": 0.07, "sigma": 0.16, "start": 400.0,  "rev_base": 280.0,  "rev_growth": 0.08, "rev_sigma": 0.05},
+}
+
+US_GROWTH = {
+    "AAPL":  {"mu": 0.12, "sigma": 0.20, "start": 230.0},
+    "MSFT":  {"mu": 0.18, "sigma": 0.18, "start": 430.0},
+    "NVDA":  {"mu": 0.45, "sigma": 0.40, "start": 140.0},
+    "GOOGL": {"mu": 0.15, "sigma": 0.22, "start": 175.0},
+    "AMZN":  {"mu": 0.14, "sigma": 0.24, "start": 200.0},
+    "META":  {"mu": 0.30, "sigma": 0.28, "start": 600.0},
+    "TSLA":  {"mu": 0.05, "sigma": 0.45, "start": 350.0},
+    "AVGO":  {"mu": 0.28, "sigma": 0.30, "start": 230.0},
+    "AMD":   {"mu": 0.18, "sigma": 0.35, "start": 150.0},
+    "NFLX":  {"mu": 0.10, "sigma": 0.25, "start": 900.0},
+}
+
+GROWTH_LOOKBACK_MONTHS = 15          # 12-1 動能 / 營收 YoY 需要的價格歷史
+GROWTH_REVENUE_LOOKBACK_MONTHS = 27  # 12 個月 YoY + lag 緩衝
+GROWTH_N_DAYS = 480                  # 涵蓋 lookback + 之後約 7 個月的交易日
 
 np.random.seed(42)
 
@@ -124,7 +158,41 @@ def build(start: str) -> None:
     tw_df.index.name = "date"
     tw_df.to_csv(DATA_DIR / "tw_factors.csv")
     print(f"  → tw_factors.csv  ({n} 列)")
+
+    build_growth(start)
     print(f"\n✅ DEMO 資料已寫入 {DATA_DIR}  ⚠ 非真實市場資料")
+
+
+def build_growth(start: str) -> None:
+    """成長股候選池價格 + 台股候選股合成月營收（供 growth_agent 回測）。"""
+    growth_start = pd.Timestamp(start) - pd.DateOffset(months=GROWTH_LOOKBACK_MONTHS)
+    dates = _biz_dates(growth_start.strftime("%Y-%m-%d"), GROWTH_N_DAYS)
+    n = len(dates)
+
+    print("產生成長股候選池價格…")
+    for sym, cfg in {**TW_GROWTH, **US_GROWTH}.items():
+        prices = _gbm_prices(n, cfg["mu"], cfg["sigma"], cfg["start"])
+        df = pd.DataFrame({"close": prices}, index=dates)
+        df.index.name = "date"
+        path = DATA_DIR / f"price_{sym}.csv"
+        df.to_csv(path)
+        print(f"  → {path.name}  ({n} 列, 起始 {growth_start.date()})")
+
+    print("產生台股候選股合成月營收…")
+    rev_start = pd.Timestamp(start) - pd.DateOffset(months=GROWTH_REVENUE_LOOKBACK_MONTHS)
+    rev_end = pd.Timestamp(start) + pd.DateOffset(months=7)
+    months = pd.date_range(rev_start, rev_end, freq="ME")
+    n_m = len(months)
+    for sym, cfg in TW_GROWTH.items():
+        monthly_growth = (1 + cfg["rev_growth"]) ** (1 / 12)
+        trend = cfg["rev_base"] * monthly_growth ** np.arange(n_m)
+        noise = 1 + np.random.normal(0, cfg["rev_sigma"], n_m)
+        revenue = np.clip(trend * noise, 1.0, None)
+        df = pd.DataFrame({"revenue": revenue}, index=months)
+        df.index.name = "date"
+        path = DATA_DIR / f"revenue_{sym}.csv"
+        df.to_csv(path)
+        print(f"  → {path.name}  ({n_m} 月, YoY={cfg['rev_growth']*100:+.0f}%)")
 
 
 def main() -> None:
