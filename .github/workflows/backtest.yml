@@ -7,9 +7,29 @@ on:
         description: "歷史起始日 YYYY-MM-DD"
         default: "2010-01-01"
         required: false
+      strategies:
+        description: "策略（逗號，留空=全部）：linear,conservative,band,threshold,sigmoid,vol_target"
+        default: ""
+        required: false
+      universe:
+        description: "Portfolio Universe（逗號，留空=不跑 portfolio 回測）：us_sector,us_factor,tw_etf"
+        default: ""
+        required: false
+      growth:
+        description: "成長股選股 Agent 回測（逗號，留空=不跑）：US,TW"
+        default: ""
+        required: false
+      growth_top_n:
+        description: "成長股 Agent 每月選股數"
+        default: "5"
+        required: false
+      commit_results:
+        description: "將 backtest_results.json 提交回儲存庫（供儀表板顯示）"
+        default: "false"
+        type: boolean
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   backtest:
@@ -29,14 +49,22 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      # ── Step 1: 單資產因子 + 價格（benchmark 用）──────────────────────────────
       - name: Fetch factor & price history
         env:
-          FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }} # 可選；提高 FinMind 限額
+          FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }}
         run: python fetch_history.py --start "${{ inputs.start }}"
 
-      - name: Run backtests (US + TW) → step summary
+      # ── Step 2: 單資產多策略回測（run_backtest.py）────────────────────────────
+      - name: Run single-asset backtests
         run: |
-          echo "## 回測結果（市場溫度分數 vs 買進持有）" >> "$GITHUB_STEP_SUMMARY"
+          mkdir -p results
+          STRAT_FLAG=""
+          if [ -n "${{ inputs.strategies }}" ]; then
+            STRAT_FLAG="--strategies ${{ inputs.strategies }}"
+          fi
+
+          echo "## 單資產回測（策略比較）" >> "$GITHUB_STEP_SUMMARY"
           for mkt in US TW; do
             lower=$(echo "$mkt" | tr 'A-Z' 'a-z')
             price="data/${lower}_price.csv"
@@ -45,17 +73,106 @@ jobs:
             if [ -f "$price" ] && [ -f "$factors" ]; then
               echo '```' >> "$GITHUB_STEP_SUMMARY"
               python run_backtest.py --market "$mkt" --price "$price" --factors "$factors" \
+                $STRAT_FLAG \
+                --output-json "results/${lower}_results.json" \
                 | tee -a "$GITHUB_STEP_SUMMARY"
               echo '```' >> "$GITHUB_STEP_SUMMARY"
             else
-              echo "⚠ 缺 $price 或 $factors（抓取該市場資料失敗，見上一步 log）" >> "$GITHUB_STEP_SUMMARY"
+              echo "⚠ 缺 $price 或 $factors" >> "$GITHUB_STEP_SUMMARY"
             fi
           done
 
-      - name: Upload data CSVs
+      # ── Step 2.5: 成長股選股 Agent 回測（選用）──────────────────────────────
+      - name: Run growth agent backtest
+        if: ${{ inputs.growth != '' }}
+        env:
+          FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }}
+        run: |
+          echo "## 成長股選股 Agent 回測" >> "$GITHUB_STEP_SUMMARY"
+          GROWTH_MARKETS=$(echo "${{ inputs.growth }}" | tr ',' '\n' | tr 'a-z' 'A-Z')
+          for mkt in $GROWTH_MARKETS; do
+            lower=$(echo "$mkt" | tr 'A-Z' 'a-z')
+            echo "### $mkt" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            python run_growth_backtest.py --market "$mkt" --start "${{ inputs.start }}" \
+              --top-n "${{ inputs.growth_top_n }}" \
+              --output-json "results/${lower}_growth.json" \
+              | tee -a "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          done
+
+      # ── Step 3: 多資產 Portfolio 回測（選用）────────────────────────────────
+      - name: Run portfolio backtest
+        if: ${{ inputs.universe != '' }}
+        env:
+          FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }}
+        run: |
+          STRAT_ARG="band,conservative"
+          if [ -n "${{ inputs.strategies }}" ]; then
+            STRAT_ARG="${{ inputs.strategies }}"
+          fi
+
+          echo "## Portfolio 回測（Universe × Strategy）" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+          # US
+          US_UNI=$(echo "${{ inputs.universe }}" | tr ',' '\n' | grep -E '^us_' | tr '\n' ',' | sed 's/,$//')
+          if [ -n "$US_UNI" ]; then
+            python run_portfolio.py \
+              --market US \
+              --start "${{ inputs.start }}" \
+              --universe "$US_UNI" \
+              --strategy "$STRAT_ARG" \
+              --output-json results/us_portfolio.json \
+              | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
+
+          # TW
+          TW_UNI=$(echo "${{ inputs.universe }}" | tr ',' '\n' | grep -E '^tw_' | tr '\n' ',' | sed 's/,$//')
+          if [ -n "$TW_UNI" ]; then
+            python run_portfolio.py \
+              --market TW \
+              --start "${{ inputs.start }}" \
+              --universe "$TW_UNI" \
+              --strategy "$STRAT_ARG" \
+              --output-json results/tw_portfolio.json \
+              | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
+
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      # ── Step 4: 合併所有結果 → backtest_results.json ──────────────────────────
+      - name: Merge results → backtest_results.json
+        run: |
+          MERGE_ARGS="--us results/us_results.json --tw results/tw_results.json --out ../backtest_results.json"
+          if [ -f results/us_growth.json ]; then MERGE_ARGS="$MERGE_ARGS --growth-us results/us_growth.json"; fi
+          if [ -f results/tw_growth.json ]; then MERGE_ARGS="$MERGE_ARGS --growth-tw results/tw_growth.json"; fi
+          if [ -f results/us_portfolio.json ]; then MERGE_ARGS="$MERGE_ARGS --portfolio-us results/us_portfolio.json"; fi
+          if [ -f results/tw_portfolio.json ]; then MERGE_ARGS="$MERGE_ARGS --portfolio-tw results/tw_portfolio.json"; fi
+          python merge_results.py $MERGE_ARGS
+
+      # ── Step 5: Commit（選用）────────────────────────────────────────────────
+      - name: Commit backtest_results.json
+        if: ${{ inputs.commit_results == 'true' }}
+        run: |
+          cd ..
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add backtest_results.json
+          if git diff --cached --quiet; then
+            echo "backtest_results.json 無變動，略過 commit"
+          else
+            git commit -m "chore: update backtest results ($(date -u +%Y-%m-%dT%H:%MZ))"
+            git push
+          fi
+
+      - name: Upload artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: backtest-data
-          path: backtest/data/*.csv
+          name: backtest-artifacts
+          path: |
+            backtest/data/*.csv
+            backtest/results/*.json
+            backtest_results.json
           if-no-files-found: warn

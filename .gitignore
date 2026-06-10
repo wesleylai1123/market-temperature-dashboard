@@ -4,3 +4,7 @@ __pycache__/
 .venv/
 venv/
 backtest/data/
+backtest/results/
+
+# 由本機手動執行後選擇性 commit，不由 CI 自動推送
+# backtest_results.json  ← 執行 backtest/merge_results.py 產生
