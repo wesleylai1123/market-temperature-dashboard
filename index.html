@@ -310,7 +310,7 @@ const SEED = {
     TW: { label: "台股", factors: {
       valuation: { label: "估值 · 台積電本益比(大盤代理)", value: 31.8, unit: "x", cal_min: 12, cal_max: 32, invert: true, direction: "越貴 → 越防禦", source: "FinMind (2330 PER)", desc: "台積電(2330)本益比代理大盤估值（權值龍頭約佔指數三成）。", stale: true },
       sentiment: { label: "情緒 · 融資餘額", value: 5666.5, unit: "億", cal_min: 2000, cal_max: 8000, invert: true, direction: "融資高(過熱) → 防禦", source: "FinMind (整體融資)", desc: "整體市場融資餘額(億元)，代理散戶槓桿情緒，過熱轉防禦。", stale: true },
-      cycle:     { label: "景氣 · 景氣對策信號", value: 28, unit: "分", cal_min: 9, cal_max: 45, invert: true, direction: "紅燈 → 防禦 / 藍燈 → 加碼", source: "FinMind TaiwanBusinessIndicator", desc: "國發會景氣對策信號 9–45，藍燈逆向加碼、紅燈轉防禦。", stale: true },
+      cycle:     { label: "景氣 · 景氣對策信號", value: 28, unit: "分", cal_min: 9, cal_max: 45, invert: true, direction: "紅燈 → 防禦 / 藍燈 → 加碼", source: "data.gov.tw 景氣指標及燈號 (dataset 6099, 國發會)", desc: "國發會景氣對策信號 9–45，藍燈逆向加碼、紅燈轉防禦。", stale: true },
       rate:      { label: "資金 · 外資買賣超", value: -50, unit: "億", cal_min: -300, cal_max: 300, invert: false, direction: "買超 → 積極", source: "TWSE", desc: "外資當日買賣超(億元)，買超偏積極、賣超轉防禦。單日 proxy。", stale: true },
     }},
   },

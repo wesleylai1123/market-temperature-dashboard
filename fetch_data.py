@@ -22,10 +22,12 @@
   資金   外資買賣超        TWSE 開放資料（單日 proxy）
   估值   大盤本益比代理     FinMind TaiwanStockPER, data_id=2330（台積電權值龍頭）
   情緒   融資餘額          FinMind TaiwanStockTotalMarginPurchaseShortSale
-  景氣   景氣對策信號       FinMind TaiwanBusinessIndicator（monitoring 綜合分數 9-45）
-                          FinMind 無 token 也能抓，設 FINMIND_TOKEN 可提高限額。
+  景氣   景氣對策信號       data.gov.tw 開放資料平台「景氣指標及燈號」(dataset 6099, 國發會)，
+                          免金鑰、CSV 格式，取對策信號分數欄位 (9-45) 最新一筆。
 """
 
+import csv
+import io
 import json
 import os
 import re
@@ -197,17 +199,83 @@ def fetch_tw_sentiment():
     return round(bal / 1e8, 1)  # 元 → 億元（實測 TodayBalance 單位為元）
 
 
-def fetch_tw_cycle():
-    """景氣對策信號：FinMind TaiwanBusinessIndicator 的 monitoring 綜合分數 (9-45)。
+def _ym_key(s):
+    """「年月」字串 → 可排序的整數 key。支援 YYYYMM 與民國 YYYMM(民國年=西元-1911)。"""
+    s = s.strip()
+    if re.fullmatch(r"\d{6}", s):
+        return int(s)
+    if re.fullmatch(r"\d{5}", s):
+        return (int(s[:3]) + 1911) * 100 + int(s[3:])
+    return None
 
-    月頻、月底發布且會事後修正；回測時 scores.py 已對因子做月底 resample + lag
+
+def fetch_tw_cycle():
+    """景氣對策信號：data.gov.tw 開放資料平台「景氣指標及燈號」(dataset 6099, 國發會) 的
+    對策信號分數 (9-45)，免金鑰、CSV 格式。
+
+    月頻、月底前後發布且會事後修正；回測時 scores.py 已對因子做月底 resample + lag
     shift，避免用到「當月尚未發布」的數值。
     """
-    rows = _finmind("TaiwanBusinessIndicator", days=120)
-    rows = [r for r in rows if r.get("monitoring") not in (None, "", 0)]
-    if not rows:
-        raise ValueError("FinMind TaiwanBusinessIndicator 無資料")
-    return round(float(rows[-1]["monitoring"]), 1)
+    meta = json.loads(_get("https://data.gov.tw/api/v2/rest/dataset/6099"))
+    resources = meta.get("result", {}).get("resources")
+    if resources is None:
+        raise ValueError(f"dataset 6099 回傳格式非預期，頂層欄位={list(meta.keys())}")
+    csv_resources = [r for r in resources if str(r.get("format", "")).upper() == "CSV"]
+    if not csv_resources:
+        names = [(r.get("name"), r.get("format")) for r in resources]
+        raise ValueError(f"dataset 6099 無 CSV 資源，resources={names}")
+
+    last_err = None
+    for r in csv_resources:
+        try:
+            rows = list(csv.reader(io.StringIO(_get(r["url"]))))
+        except Exception as exc:  # noqa: BLE001
+            last_err = exc
+            continue
+        if len(rows) < 2:
+            last_err = ValueError(f"{r['url']} CSV 為空")
+            continue
+
+        header, body = rows[0], rows[1:]
+        date_idx = next((i for i, c in enumerate(header)
+                          if any(k in c for k in ("年月", "時間", "date", "Date"))), None)
+        score_idx = None
+        for i, name in enumerate(header):
+            if "對策信號" not in name and "燈號" not in name:
+                continue
+            vals = []
+            for row in body:
+                if i < len(row):
+                    try:
+                        vals.append(float(row[i]))
+                    except ValueError:
+                        pass
+            if vals and sum(9 <= v <= 45 for v in vals) / len(vals) > 0.8:
+                score_idx = i
+                break
+        if score_idx is None:
+            last_err = ValueError(f"{r['url']} 找不到對策信號欄位，欄位={header}")
+            continue
+
+        best_key, best_val = None, None
+        for row in body:
+            if score_idx >= len(row):
+                continue
+            try:
+                val = float(row[score_idx])
+            except ValueError:
+                continue
+            key = _ym_key(row[date_idx]) if date_idx is not None and date_idx < len(row) else None
+            if key is None:
+                best_val = val  # 無日期欄時，假設 CSV 依時間升冪排列，取最後一筆有效值
+            elif best_key is None or key >= best_key:
+                best_key, best_val = key, val
+        if best_val is None:
+            last_err = ValueError(f"{r['url']} 對策信號欄位無有效數值")
+            continue
+        return round(best_val, 1)
+
+    raise ValueError(f"dataset 6099 CSV 皆解析失敗: {last_err}")
 
 
 # ---- 主流程 -------------------------------------------------------------------

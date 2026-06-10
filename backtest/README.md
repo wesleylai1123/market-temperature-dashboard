@@ -50,7 +50,7 @@ python run_backtest.py --market TW --price data/tw_price.csv --factors data/tw_f
 | 美股 | 價格 SPY | Yahoo chart API（stooq 備援） | ✅ 可抓 |
 | 台股 | 估值 2330 PER | FinMind `TaiwanStockPER` | ✅ 可抓 |
 | 台股 | 情緒 融資餘額 | FinMind 整體融資 | ✅ 可抓 |
-| 台股 | 景氣對策信號 | FinMind `TaiwanBusinessIndicator` | ✅ 可抓 |
+| 台股 | 景氣對策信號 | data.gov.tw `景氣指標及燈號`（dataset 6099, 國發會） | ✅ 可抓 |
 | 台股 | 外資買賣超 | FinMind `TaiwanStockTotalInstitutionalInvestors` | ✅ 可抓 |
 | 台股 | 價格 0050 | FinMind `TaiwanStockPrice` | ✅ 可抓 |
 

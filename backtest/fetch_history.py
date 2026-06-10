@@ -15,7 +15,8 @@
 
 來源驗證狀態（已於 GitHub Actions runner 實跑確認）：
   ✅ 可抓：CNN F&G(帶 Referer，約近1年)、US Treasury 2Y/10Y、Yahoo SPY、
-          FinMind 2330 PER / 整體融資 / 景氣對策信號 / 三大法人(外資) / 0050 價格
+          FinMind 2330 PER / 整體融資 / 三大法人(外資) / 0050 價格、
+          data.gov.tw 景氣指標及燈號(dataset 6099, 國發會, 景氣對策信號)
   ⚠ CAPE 未解：multpl 全頁 JS(AJAX 載入)，靜態抓不到；nasdaq/quandl 需金鑰。
      → 待補：改抓 Shiller 官方 ie_data.xls (需 xlrd，月頻 1871 起)。目前美股缺估值因子，
        回測自動以 利率+曲線+情緒 重分配權重(同台股缺景氣的處理)。
@@ -199,11 +200,69 @@ def tw_foreign(start):
     return g.rename("rate")
 
 
+def _parse_ndc_date(series):
+    """國發會/data.gov.tw「年月」常見格式：YYYYMM、民國 YYYMM(民國年=西元-1911) 或一般日期字串。"""
+    s = series.astype(str).str.strip()
+    if s.str.fullmatch(r"\d{6}").all():
+        years = s.str[:4].astype(int)
+        months = s.str[4:6].astype(int)
+        return pd.to_datetime(years.astype(str) + "-" + months.astype(str).str.zfill(2) + "-01")
+    if s.str.fullmatch(r"\d{5}").all():
+        years = s.str[:3].astype(int) + 1911
+        months = s.str[3:5].astype(int)
+        return pd.to_datetime(years.astype(str) + "-" + months.astype(str).str.zfill(2) + "-01")
+    return pd.to_datetime(s, errors="coerce")
+
+
 def tw_cycle(start):
-    """景氣對策信號(9-45)月頻歷史。FinMind TaiwanBusinessIndicator.monitoring。"""
-    df = _finmind("TaiwanBusinessIndicator", start)
-    df["date"] = pd.to_datetime(df["date"])
-    return pd.to_numeric(df.set_index("date")["monitoring"], errors="coerce").rename("cycle")
+    """景氣對策信號(9-45)月頻歷史。data.gov.tw 開放資料平台「景氣指標及燈號」(dataset 6099, 國發會)，免金鑰。
+
+    CSV 欄位名稱可能隨版本調整，故以關鍵字（含「對策信號」或「燈號」）＋數值範圍(9-45)
+    雙重判斷找出對策信號分數欄位，並嘗試多個 CSV 資源直到成功解析。
+    """
+    from io import StringIO
+
+    meta = json.loads(_get("https://data.gov.tw/api/v2/rest/dataset/6099"))
+    resources = meta.get("result", {}).get("resources")
+    if resources is None:
+        raise ValueError(f"dataset 6099 回傳格式非預期，頂層欄位={list(meta.keys())}")
+    csv_resources = [r for r in resources if str(r.get("format", "")).upper() == "CSV"]
+    if not csv_resources:
+        names = [(r.get("name"), r.get("format")) for r in resources]
+        raise ValueError(f"dataset 6099 無 CSV 資源，resources={names}")
+
+    last_err: Exception | None = None
+    for r in csv_resources:
+        try:
+            df = pd.read_csv(StringIO(_get(r["url"])))
+        except Exception as exc:  # noqa: BLE001
+            last_err = exc
+            continue
+
+        date_col = next((c for c in df.columns
+                          if any(k in str(c) for k in ("年月", "時間", "date", "Date"))), None)
+        score_col = None
+        for c in df.columns:
+            if "對策信號" not in str(c) and "燈號" not in str(c):
+                continue
+            vals = pd.to_numeric(df[c], errors="coerce").dropna()
+            if len(vals) and vals.between(9, 45).mean() > 0.8:
+                score_col = c
+                break
+        if date_col is None or score_col is None:
+            last_err = ValueError(f"{r['url']} 找不到日期/對策信號欄位，欄位={list(df.columns)}")
+            continue
+
+        idx = _parse_ndc_date(df[date_col])
+        out = pd.Series(pd.to_numeric(df[score_col], errors="coerce").values, index=idx)
+        out = out.dropna().sort_index()
+        out = out[out.index >= pd.Timestamp(start)]
+        if out.empty:
+            last_err = ValueError(f"{r['url']} 解析後於 {start} 之後無資料")
+            continue
+        return out.rename("cycle")
+
+    raise ValueError(f"dataset 6099 CSV 皆解析失敗: {last_err}")
 
 
 # ---- 組裝 ---------------------------------------------------------------------

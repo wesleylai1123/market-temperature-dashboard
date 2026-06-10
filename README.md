@@ -55,12 +55,13 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | **估值 · 台積電本益比(大盤代理)** | 台積電(2330)本益比代理大盤估值（佔指數約三成的權值龍頭，非市值加權整體 P/E） | x | 12–32 | 越貴→防禦 | FinMind `TaiwanStockPER` data_id=2330 | ✅ |
 | **情緒 · 融資餘額** | 整體市場融資餘額金額(億元)，代理散戶槓桿情緒 | 億 | 2000–8000 | 越高(過熱)→防禦 | FinMind `TaiwanStockTotalMarginPurchaseShortSale` | ✅ |
-| **景氣 · 國發會景氣對策信號** | 綜合分數 9–45，藍燈(低)逆向加碼、紅燈(高)轉防禦；台灣特有 | 分 | 9–45 | 紅燈→防禦 / 藍燈→加碼 | FinMind `TaiwanBusinessIndicator`（monitoring） | ✅ |
+| **景氣 · 國發會景氣對策信號** | 綜合分數 9–45，藍燈(低)逆向加碼、紅燈(高)轉防禦；台灣特有 | 分 | 9–45 | 紅燈→防禦 / 藍燈→加碼 | data.gov.tw `景氣指標及燈號`（dataset 6099, 國發會, 對策信號分數） | ✅ |
 | **資金 · 外資買賣超** | 外資當日買賣超金額，買超偏積極、賣超轉防禦（單日 proxy） | 億 | -300–300 | 買超→積極 | TWSE | ✅ |
 
 > 美股四項已接好（殖利率改用美國財政部 .gov 免金鑰最穩，原 FRED 從 GitHub runner 會 timeout；CAPE、恐懼貪婪是解析非官方來源，較脆弱但已包重試）。
-> 台股四項皆已接好：外資(TWSE)、估值(FinMind 2330 PER 代理)、情緒(FinMind 整體融資)、景氣(FinMind `TaiwanBusinessIndicator`)。
-> [FinMind](https://finmindtrade.com/) 無 token 也能抓（限流較低）；設 `FINMIND_TOKEN` secret 可提高限額。
+> 台股四項皆已接好：外資(TWSE)、估值(FinMind 2330 PER 代理)、情緒(FinMind 整體融資)、景氣(data.gov.tw 景氣指標及燈號)。
+> [FinMind](https://finmindtrade.com/) 無 token 也能抓（限流較低）；設 `FINMIND_TOKEN` secret 可提高限額。FinMind 的
+> `TaiwanBusinessIndicator`（景氣對策信號）為 Backer/Sponsor 付費方案資料集，故改用 data.gov.tw 開放資料。
 
 ---
 
@@ -180,7 +181,7 @@ python run_backtest.py --market TW --price data/tw_price.csv --factors data/tw_f
 
 - [x] 用 FinMind 接台股估值(2330 PER 代理)、情緒(融資餘額)
 - [x] backtrader 回測驗證燈號（台美雙市場，含 lookahead 防護）
-- [x] 接台股景氣對策信號（FinMind `TaiwanBusinessIndicator`）
+- [x] 接台股景氣對策信號（data.gov.tw 景氣指標及燈號, dataset 6099, 國發會）
 - [x] `scoreOf()` 換成歷史百分位（取代線性映射）
 - [ ] 燈號翻轉/跨閾值時推 Telegram 通知
 
