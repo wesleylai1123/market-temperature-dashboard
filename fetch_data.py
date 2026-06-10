@@ -22,7 +22,7 @@
   資金   外資買賣超        TWSE 開放資料（單日 proxy）
   估值   大盤本益比代理     FinMind TaiwanStockPER, data_id=2330（台積電權值龍頭）
   情緒   融資餘額          FinMind TaiwanStockTotalMarginPurchaseShortSale
-  景氣   景氣對策信號       尚未接線（FinMind 無、國發會端點待確認）→ 沿用舊值
+  景氣   景氣對策信號       FinMind TaiwanBusinessIndicator（monitoring 綜合分數 9-45）
                           FinMind 無 token 也能抓，設 FINMIND_TOKEN 可提高限額。
 """
 
@@ -198,9 +198,16 @@ def fetch_tw_sentiment():
 
 
 def fetch_tw_cycle():
-    # 國發會景氣對策信號：FinMind 無此資料集，國發會/data.gov.tw 端點尚未確認可用，
-    # 暫保留沿用舊值。補上時填這裡（月頻、月底發布、會事後修正，回測注意 lookahead）。
-    raise NotImplementedError("國發會景氣對策信號尚未接線（待確認穩定端點）")
+    """景氣對策信號：FinMind TaiwanBusinessIndicator 的 monitoring 綜合分數 (9-45)。
+
+    月頻、月底發布且會事後修正；回測時 scores.py 已對因子做月底 resample + lag
+    shift，避免用到「當月尚未發布」的數值。
+    """
+    rows = _finmind("TaiwanBusinessIndicator", days=120)
+    rows = [r for r in rows if r.get("monitoring") not in (None, "", 0)]
+    if not rows:
+        raise ValueError("FinMind TaiwanBusinessIndicator 無資料")
+    return round(float(rows[-1]["monitoring"]), 1)
 
 
 # ---- 主流程 -------------------------------------------------------------------

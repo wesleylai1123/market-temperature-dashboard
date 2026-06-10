@@ -6,7 +6,7 @@
 產出：
   data/us_factors.csv  date,valuation,sentiment,cycle,rate
   data/us_price.csv     date,close                         (SPY)
-  data/tw_factors.csv  date,valuation,sentiment[,rate]
+  data/tw_factors.csv  date,valuation,sentiment,cycle[,rate]
   data/tw_price.csv     date,close                         (0050)
 
 用法：
@@ -15,7 +15,7 @@
 
 來源驗證狀態（已於 GitHub Actions runner 實跑確認）：
   ✅ 可抓：CNN F&G(帶 Referer，約近1年)、US Treasury 2Y/10Y、Yahoo SPY、
-          FinMind 2330 PER / 整體融資 / 三大法人(外資) / 0050 價格
+          FinMind 2330 PER / 整體融資 / 景氣對策信號 / 三大法人(外資) / 0050 價格
   ⚠ CAPE 未解：multpl 全頁 JS(AJAX 載入)，靜態抓不到；nasdaq/quandl 需金鑰。
      → 待補：改抓 Shiller 官方 ie_data.xls (需 xlrd，月頻 1871 起)。目前美股缺估值因子，
        回測自動以 利率+曲線+情緒 重分配權重(同台股缺景氣的處理)。
@@ -199,6 +199,13 @@ def tw_foreign(start):
     return g.rename("rate")
 
 
+def tw_cycle(start):
+    """景氣對策信號(9-45)月頻歷史。FinMind TaiwanBusinessIndicator.monitoring。"""
+    df = _finmind("TaiwanBusinessIndicator", start)
+    df["date"] = pd.to_datetime(df["date"])
+    return pd.to_numeric(df.set_index("date")["monitoring"], errors="coerce").rename("cycle")
+
+
 # ---- 組裝 ---------------------------------------------------------------------
 
 def _try(label, fn):
@@ -240,6 +247,7 @@ def build(start: str):
     tw_cols = [s for s in (
         _try("2330 PER", lambda: tw_valuation(start)),
         _try("融資餘額", lambda: tw_sentiment(start)),
+        _try("景氣對策信號", lambda: tw_cycle(start)),
         _try("外資買賣超", lambda: tw_foreign(start)),
     ) if s is not None]
     if tw_cols:
