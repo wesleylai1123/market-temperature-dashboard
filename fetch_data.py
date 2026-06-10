@@ -53,8 +53,8 @@ BROWSER_HEADERS = {
 }
 
 
-def _get(url, timeout=30, retries=3, headers=None):
-    """抓取 URL，帶瀏覽器標頭 + 重試（指數退避），降低偶發 timeout/擋爬。"""
+def _get_bytes(url, timeout=30, retries=3, headers=None):
+    """抓取 URL（原始 bytes），帶瀏覽器標頭 + 重試（指數退避），降低偶發 timeout/擋爬。"""
     merged = dict(BROWSER_HEADERS)
     if headers:
         merged.update(headers)
@@ -63,12 +63,16 @@ def _get(url, timeout=30, retries=3, headers=None):
         try:
             req = urllib.request.Request(url, headers=merged)
             with urllib.request.urlopen(req, timeout=timeout, context=_CTX) as resp:
-                return resp.read().decode("utf-8", "replace")
+                return resp.read()
         except Exception as exc:  # noqa: BLE001 — 重試後仍失敗才往外丟
             last_exc = exc
             if attempt < retries - 1:
                 time.sleep(1.5 * (attempt + 1))
     raise last_exc
+
+
+def _get(url, timeout=30, retries=3, headers=None):
+    return _get_bytes(url, timeout, retries, headers).decode("utf-8", "replace")
 
 
 _treasury_cache = {}
@@ -200,21 +204,44 @@ def fetch_tw_sentiment():
 
 
 def _ym_key(s):
-    """「年月」字串 → 可排序的整數 key。支援 YYYYMM 與民國 YYYMM(民國年=西元-1911)。"""
+    """「年月」字串 → 可排序的整數 key (西元 YYYYMM)。
+    支援 YYYYMM、民國 YYMM/YYYMM(民國年=西元-1911，99 年以前為 4 位數)、
+    民國「114年4月」與 YYYY-MM / YYYY/MM。"""
     s = s.strip()
-    if re.fullmatch(r"\d{6}", s):
+    m = re.fullmatch(r"(\d{4})(\d{2})", s)
+    if m and 1911 < int(m.group(1)) < 2200 and 1 <= int(m.group(2)) <= 12:
         return int(s)
-    if re.fullmatch(r"\d{5}", s):
-        return (int(s[:3]) + 1911) * 100 + int(s[3:])
+    m = re.fullmatch(r"(\d{2,3})(\d{2})", s)
+    if m and 1 <= int(m.group(2)) <= 12:
+        return (int(m.group(1)) + 1911) * 100 + int(m.group(2))
+    m = re.fullmatch(r"(\d{2,3})年(\d{1,2})月?", s)
+    if m:
+        return (int(m.group(1)) + 1911) * 100 + int(m.group(2))
+    m = re.fullmatch(r"(\d{4})[-/](\d{1,2})([-/]\d{1,2})?", s)
+    if m:
+        return int(m.group(1)) * 100 + int(m.group(2))
     return None
 
 
-def _ndc_csv_resources(meta):
+def _decode_csv_bytes(b):
+    """NDC/data.gov.tw 的 CSV 可能是 UTF-8(含 BOM) 或 Big5/CP950 編碼。"""
+    for enc in ("utf-8-sig", "cp950"):
+        try:
+            return b.decode(enc)
+        except UnicodeDecodeError:
+            continue
+    return b.decode("utf-8", "replace")
+
+
+def _ndc_csv_texts(meta):
     """data.gov.tw dataset API 的資源清單欄位在不同資料集/版本間不一致：
     可能是 CKAN 風格 result.resources（欄位 format/url），
     也可能是 DCAT 風格 result.distribution（欄位 resourceFormat/resourceDownloadUrl）。
-    這裡相容兩種命名，回傳 [(url, name), ...] 的 CSV 資源清單。
+    資源本身可能是 CSV，也可能是含多個 CSV 的 ZIP（dataset 6099 實測為 ZIP）。
+    相容以上情況，回傳 [(label, csv_text), ...]。
     """
+    import zipfile
+
     result = meta.get("result")
     items = None
     if isinstance(result, list):
@@ -229,18 +256,29 @@ def _ndc_csv_resources(meta):
         detail = list(result.keys()) if isinstance(result, dict) else type(result).__name__
         raise ValueError(f"dataset 6099 回傳格式非預期，result 結構={detail}")
 
-    out = []
+    out, notes = [], []
     for r in items:
         fmt = str(r.get("format") or r.get("resourceFormat") or "").upper()
         url = r.get("url") or r.get("resourceDownloadUrl") or r.get("downloadURL") or r.get("accessURL")
-        name = r.get("name") or r.get("resourceDescription") or r.get("resourceName") or url
-        if url and (fmt == "CSV" or str(url).lower().endswith(".csv")):
-            out.append((url, name))
+        if not url:
+            continue
+        try:
+            if fmt == "CSV" or str(url).lower().endswith(".csv"):
+                out.append((url, _decode_csv_bytes(_get_bytes(url))))
+            elif fmt == "ZIP" or ".zip" in str(url).lower():
+                with zipfile.ZipFile(io.BytesIO(_get_bytes(url))) as zf:
+                    members = zf.namelist()
+                    csv_members = [m for m in members if m.lower().endswith(".csv")]
+                    if not csv_members:
+                        notes.append(f"{url} ZIP 內無 CSV，成員={members}")
+                    for m in csv_members:
+                        out.append((f"{url}!{m}", _decode_csv_bytes(zf.read(m))))
+        except Exception as exc:  # noqa: BLE001
+            notes.append(f"{url} 下載/解壓失敗: {type(exc).__name__}: {exc}")
     if not out:
         names = [(r.get("name") or r.get("resourceDescription"),
-                   r.get("format") or r.get("resourceFormat"),
-                   r.get("url") or r.get("resourceDownloadUrl")) for r in items]
-        raise ValueError(f"dataset 6099 無 CSV 資源，resources={names}")
+                   r.get("format") or r.get("resourceFormat")) for r in items]
+        raise ValueError(f"dataset 6099 無可用 CSV，resources={names}；{'; '.join(notes)}")
     return out
 
 
@@ -252,12 +290,12 @@ def fetch_tw_cycle():
     shift，避免用到「當月尚未發布」的數值。
     """
     meta = json.loads(_get("https://data.gov.tw/api/v2/rest/dataset/6099"))
-    csv_resources = _ndc_csv_resources(meta)
+    csv_texts = _ndc_csv_texts(meta)
 
     last_err = None
-    for url, _name in csv_resources:
+    for url, text in csv_texts:
         try:
-            rows = list(csv.reader(io.StringIO(_get(url))))
+            rows = list(csv.reader(io.StringIO(text)))
         except Exception as exc:  # noqa: BLE001
             last_err = exc
             continue
@@ -267,7 +305,7 @@ def fetch_tw_cycle():
 
         header, body = rows[0], rows[1:]
         date_idx = next((i for i, c in enumerate(header)
-                          if any(k in c for k in ("年月", "時間", "date", "Date"))), None)
+                          if any(k in c for k in ("年月", "日期", "時間", "date", "Date"))), None)
         score_idx = None
         for i, name in enumerate(header):
             if "對策信號" not in name and "燈號" not in name:
