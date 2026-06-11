@@ -22,10 +22,12 @@
   資金   外資買賣超        TWSE 開放資料（單日 proxy）
   估值   大盤本益比代理     FinMind TaiwanStockPER, data_id=2330（台積電權值龍頭）
   情緒   融資餘額          FinMind TaiwanStockTotalMarginPurchaseShortSale
-  景氣   景氣對策信號       尚未接線（FinMind 無、國發會端點待確認）→ 沿用舊值
-                          FinMind 無 token 也能抓，設 FINMIND_TOKEN 可提高限額。
+  景氣   景氣對策信號       data.gov.tw 開放資料平台「景氣指標及燈號」(dataset 6099, 國發會)，
+                          免金鑰、ZIP 內 CSV，取對策信號分數欄位 (9-45) 最新一筆。
 """
 
+import csv
+import io
 import json
 import os
 import re
@@ -51,8 +53,8 @@ BROWSER_HEADERS = {
 }
 
 
-def _get(url, timeout=30, retries=3, headers=None):
-    """抓取 URL，帶瀏覽器標頭 + 重試（指數退避），降低偶發 timeout/擋爬。"""
+def _get_bytes(url, timeout=30, retries=3, headers=None):
+    """抓取 URL（原始 bytes），帶瀏覽器標頭 + 重試（指數退避），降低偶發 timeout/擋爬。"""
     merged = dict(BROWSER_HEADERS)
     if headers:
         merged.update(headers)
@@ -61,12 +63,16 @@ def _get(url, timeout=30, retries=3, headers=None):
         try:
             req = urllib.request.Request(url, headers=merged)
             with urllib.request.urlopen(req, timeout=timeout, context=_CTX) as resp:
-                return resp.read().decode("utf-8", "replace")
+                return resp.read()
         except Exception as exc:  # noqa: BLE001 — 重試後仍失敗才往外丟
             last_exc = exc
             if attempt < retries - 1:
                 time.sleep(1.5 * (attempt + 1))
     raise last_exc
+
+
+def _get(url, timeout=30, retries=3, headers=None):
+    return _get_bytes(url, timeout, retries, headers).decode("utf-8", "replace")
 
 
 _treasury_cache = {}
@@ -197,10 +203,146 @@ def fetch_tw_sentiment():
     return round(bal / 1e8, 1)  # 元 → 億元（實測 TodayBalance 單位為元）
 
 
+def _ym_key(s):
+    """「年月」字串 → 可排序的整數 key (西元 YYYYMM)。
+    支援 YYYYMM、民國 YYMM/YYYMM(民國年=西元-1911，99 年以前為 4 位數)、
+    民國「114年4月」與 YYYY-MM / YYYY/MM。"""
+    s = s.strip()
+    m = re.fullmatch(r"(\d{4})(\d{2})", s)
+    if m and 1911 < int(m.group(1)) < 2200 and 1 <= int(m.group(2)) <= 12:
+        return int(s)
+    m = re.fullmatch(r"(\d{2,3})(\d{2})", s)
+    if m and 1 <= int(m.group(2)) <= 12:
+        return (int(m.group(1)) + 1911) * 100 + int(m.group(2))
+    m = re.fullmatch(r"(\d{2,3})年(\d{1,2})月?", s)
+    if m:
+        return (int(m.group(1)) + 1911) * 100 + int(m.group(2))
+    m = re.fullmatch(r"(\d{4})[-/](\d{1,2})([-/]\d{1,2})?", s)
+    if m:
+        return int(m.group(1)) * 100 + int(m.group(2))
+    return None
+
+
+def _decode_csv_bytes(b):
+    """NDC/data.gov.tw 的 CSV 可能是 UTF-8(含 BOM) 或 Big5/CP950 編碼。"""
+    for enc in ("utf-8-sig", "cp950"):
+        try:
+            return b.decode(enc)
+        except UnicodeDecodeError:
+            continue
+    return b.decode("utf-8", "replace")
+
+
+def _ndc_csv_texts(meta):
+    """data.gov.tw dataset API 的資源清單欄位在不同資料集/版本間不一致：
+    可能是 CKAN 風格 result.resources（欄位 format/url），
+    也可能是 DCAT 風格 result.distribution（欄位 resourceFormat/resourceDownloadUrl）。
+    資源本身可能是 CSV，也可能是含多個 CSV 的 ZIP（dataset 6099 實測為 ZIP）。
+    相容以上情況，回傳 [(label, csv_text), ...]。
+    """
+    import zipfile
+
+    result = meta.get("result")
+    items = None
+    if isinstance(result, list):
+        items = result
+    elif isinstance(result, dict):
+        for key in ("resources", "distribution", "distributions"):
+            v = result.get(key)
+            if isinstance(v, list):
+                items = v
+                break
+    if items is None:
+        detail = list(result.keys()) if isinstance(result, dict) else type(result).__name__
+        raise ValueError(f"dataset 6099 回傳格式非預期，result 結構={detail}")
+
+    out, notes = [], []
+    for r in items:
+        fmt = str(r.get("format") or r.get("resourceFormat") or "").upper()
+        url = r.get("url") or r.get("resourceDownloadUrl") or r.get("downloadURL") or r.get("accessURL")
+        if not url:
+            continue
+        try:
+            if fmt == "CSV" or str(url).lower().endswith(".csv"):
+                out.append((url, _decode_csv_bytes(_get_bytes(url))))
+            elif fmt == "ZIP" or ".zip" in str(url).lower():
+                with zipfile.ZipFile(io.BytesIO(_get_bytes(url))) as zf:
+                    members = zf.namelist()
+                    csv_members = [m for m in members if m.lower().endswith(".csv")]
+                    if not csv_members:
+                        notes.append(f"{url} ZIP 內無 CSV，成員={members}")
+                    for m in csv_members:
+                        out.append((f"{url}!{m}", _decode_csv_bytes(zf.read(m))))
+        except Exception as exc:  # noqa: BLE001
+            notes.append(f"{url} 下載/解壓失敗: {type(exc).__name__}: {exc}")
+    if not out:
+        names = [(r.get("name") or r.get("resourceDescription"),
+                   r.get("format") or r.get("resourceFormat")) for r in items]
+        raise ValueError(f"dataset 6099 無可用 CSV，resources={names}；{'; '.join(notes)}")
+    return out
+
+
 def fetch_tw_cycle():
-    # 國發會景氣對策信號：FinMind 無此資料集，國發會/data.gov.tw 端點尚未確認可用，
-    # 暫保留沿用舊值。補上時填這裡（月頻、月底發布、會事後修正，回測注意 lookahead）。
-    raise NotImplementedError("國發會景氣對策信號尚未接線（待確認穩定端點）")
+    """景氣對策信號：data.gov.tw 開放資料平台「景氣指標及燈號」(dataset 6099, 國發會) 的
+    對策信號分數 (9-45)，免金鑰、ZIP 內 CSV。
+
+    月頻、月底前後發布且會事後修正；回測時 scores.py 已對因子做月底 resample + lag
+    shift，避免用到「當月尚未發布」的數值。
+    """
+    meta = json.loads(_get("https://data.gov.tw/api/v2/rest/dataset/6099"))
+    csv_texts = _ndc_csv_texts(meta)
+
+    last_err = None
+    for url, text in csv_texts:
+        try:
+            rows = list(csv.reader(io.StringIO(text)))
+        except Exception as exc:  # noqa: BLE001
+            last_err = exc
+            continue
+        if len(rows) < 2:
+            last_err = ValueError(f"{url} CSV 為空")
+            continue
+
+        header, body = rows[0], rows[1:]
+        date_idx = next((i for i, c in enumerate(header)
+                          if any(k in c for k in ("年月", "日期", "時間", "date", "Date"))), None)
+        score_idx = None
+        for i, name in enumerate(header):
+            if "對策信號" not in name and "燈號" not in name:
+                continue
+            vals = []
+            for row in body:
+                if i < len(row):
+                    try:
+                        vals.append(float(row[i]))
+                    except ValueError:
+                        pass
+            if vals and sum(9 <= v <= 45 for v in vals) / len(vals) > 0.8:
+                score_idx = i
+                break
+        if score_idx is None:
+            last_err = ValueError(f"{url} 找不到對策信號欄位，欄位={header}")
+            continue
+
+        best_key, best_val = None, None
+        for row in body:
+            if score_idx >= len(row):
+                continue
+            try:
+                val = float(row[score_idx])
+            except ValueError:
+                continue
+            key = _ym_key(row[date_idx]) if date_idx is not None and date_idx < len(row) else None
+            if key is None:
+                best_val = val  # 無日期欄時，假設 CSV 依時間升冪排列，取最後一筆有效值
+            elif best_key is None or key >= best_key:
+                best_key, best_val = key, val
+        if best_val is None:
+            last_err = ValueError(f"{r['url']} 對策信號欄位無有效數值")
+            continue
+        return round(best_val, 1)
+
+    raise ValueError(f"dataset 6099 CSV 皆解析失敗: {last_err}")
 
 
 # ---- 主流程 -------------------------------------------------------------------

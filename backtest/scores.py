@@ -1,10 +1,16 @@
 """把歷史因子值轉成月頻「合成積極度分數」與「目標股票權重」。
 
-與儀表板共用同一套因子設定（cal_min/cal_max/invert/weights 來自根目錄 data.json），
+與儀表板共用同一套因子設定（invert/weights 來自根目錄 data.json），
 所以回測驗證的就是儀表板上那套燈號邏輯。
+
+標準化：
+  * 單因子原始值 → 積極度 0–100，採「擴張視窗歷史百分位排名」：
+    每個時點的分數 = 該值在「至今為止（含當期）」歷史分布中的百分位。
+    無需校準區間（cal_min/cal_max），自動隨樣本數增加而貼合該市場自身的歷史分布。
 
 防 lookahead：
   * 因子先 resample 到「月底」(月內最後一筆已知值)。
+  * 百分位排名只用「至今為止」的樣本，不會用到未來資料。
   * 合成分數再整體往後 shift lag_months 個月才拿來交易。
 
 策略解耦：
@@ -29,14 +35,19 @@ def load_config() -> dict:
     return json.loads(DATA_JSON.read_text(encoding="utf-8"))
 
 
-def score_of(value, cal_min: float, cal_max: float, invert: bool):
-    """單因子原始值 → 積極度 0–100（與 index.html 的 scoreOf 一致）。"""
-    span = cal_max - cal_min
-    if span == 0:
-        pct = 0.5
-    else:
-        pct = (value - cal_min) / span
-    pct = pct.clip(0, 1) if hasattr(pct, "clip") else max(0.0, min(1.0, float(pct)))
+def score_of(values: pd.Series, invert: bool) -> pd.Series:
+    """單因子歷史值序列 → 積極度 0–100（擴張視窗歷史百分位排名，與 index.html 的
+    scoreOf 一致；無 lookahead：每個時點只用至今為止的樣本排名）。
+
+    invert=True 代表「值越大 → 越防禦」，故用 1 - 百分位 轉成積極度。
+    """
+    def _expanding_pct(w: np.ndarray) -> float:
+        if np.isnan(w[-1]):
+            return np.nan
+        valid = w[~np.isnan(w)]
+        return (valid <= w[-1]).mean()
+
+    pct = values.expanding(min_periods=1).apply(_expanding_pct, raw=True)
     aggressiveness = (1 - pct) if invert else pct
     return aggressiveness * 100.0
 
@@ -65,7 +76,7 @@ def market_composite_score(
         if dim not in monthly.columns:
             continue
         col = pd.to_numeric(monthly[dim], errors="coerce")
-        score_cols[dim] = score_of(col, fcfg["cal_min"], fcfg["cal_max"], fcfg["invert"])
+        score_cols[dim] = score_of(col, fcfg["invert"])
         wmap[dim] = weights.get(dim, 0.0)
 
     if not score_cols:

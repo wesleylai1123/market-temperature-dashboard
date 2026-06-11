@@ -38,7 +38,7 @@
 ## 數據字典（每一項數字的意義）
 
 > 「方向」採**逆向(contrarian)**思維：貴/貪婪/過熱 → 防禦；便宜/恐懼/谷底 → 積極。
-> `cal_min/cal_max` 是把原始值映射成積極度的校準區間（見[計分邏輯](#分數怎麼算計分邏輯)）。
+> 積極度優先用 `pctile_ref`（歷史百分位排名）計算；樣本不足 12 筆時退回 `cal_min/cal_max` 校準區間線性映射（見[計分邏輯](#分數怎麼算計分邏輯)）。
 
 ### 美股
 
@@ -55,30 +55,38 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | **估值 · 台積電本益比(大盤代理)** | 台積電(2330)本益比代理大盤估值（佔指數約三成的權值龍頭，非市值加權整體 P/E） | x | 12–32 | 越貴→防禦 | FinMind `TaiwanStockPER` data_id=2330 | ✅ |
 | **情緒 · 融資餘額** | 整體市場融資餘額金額(億元)，代理散戶槓桿情緒 | 億 | 2000–8000 | 越高(過熱)→防禦 | FinMind `TaiwanStockTotalMarginPurchaseShortSale` | ✅ |
-| **景氣 · 國發會景氣對策信號** | 綜合分數 9–45，藍燈(低)逆向加碼、紅燈(高)轉防禦；台灣特有 | 分 | 9–45 | 紅燈→防禦 / 藍燈→加碼 | TODO（FinMind 無，國發會端點待確認） | ⛏ 未接線 |
+| **景氣 · 國發會景氣對策信號** | 綜合分數 9–45，藍燈(低)逆向加碼、紅燈(高)轉防禦；台灣特有 | 分 | 9–45 | 紅燈→防禦 / 藍燈→加碼 | data.gov.tw `景氣指標及燈號`（dataset 6099, 國發會, 對策信號分數） | ✅ |
 | **資金 · 外資買賣超** | 外資當日買賣超金額，買超偏積極、賣超轉防禦（單日 proxy） | 億 | -300–300 | 買超→積極 | TWSE | ✅ |
 
 > 美股四項已接好（殖利率改用美國財政部 .gov 免金鑰最穩，原 FRED 從 GitHub runner 會 timeout；CAPE、恐懼貪婪是解析非官方來源，較脆弱但已包重試）。
-> 台股四項已接三項：外資(TWSE)、估值(FinMind 2330 PER 代理)、情緒(FinMind 整體融資)。
-> 只剩 **景氣對策信號** 待接（FinMind 無此資料集、國發會穩定端點待確認），目前沿用舊值並標 stale。
-> [FinMind](https://finmindtrade.com/) 無 token 也能抓（限流較低）；設 `FINMIND_TOKEN` secret 可提高限額。
+> 台股四項皆已接好：外資(TWSE)、估值(FinMind 2330 PER 代理)、情緒(FinMind 整體融資)、景氣(data.gov.tw 景氣指標及燈號)。
+> [FinMind](https://finmindtrade.com/) 無 token 也能抓（限流較低）；設 `FINMIND_TOKEN` secret 可提高限額。FinMind 的
+> `TaiwanBusinessIndicator`（景氣對策信號）為 Backer/Sponsor 付費方案資料集，故改用 data.gov.tw 開放資料。
 
 ---
 
 ## 分數怎麼算（計分邏輯）
 
-1. **單因子 → 積極度 0–100**（`index.html` 的 `scoreOf()`）
+1. **單因子 → 積極度 0–100**（`index.html` 的 `scoreOf()`，與 `backtest/scores.py` 的
+   `score_of()` 同一套邏輯）
    ```
-   pct = clamp((value - cal_min) / (cal_max - cal_min), 0, 1)
+   pct = 目前值在 pctile_ref（至今所有歷史月度數值，由小到大排序）中的百分位排名 0–1
    積極度 = (invert ? 1 - pct : pct) × 100
    ```
    `invert=true` 代表「值越大越防禦」（估值、情緒、利率）；`invert=false` 代表「值越大越積極」（殖利率曲線、外資買超）。
+
+   `pctile_ref` 由 `backtest/update_percentiles.py` 從 `backtest/data/{us,tw}_factors.csv`
+   算出並寫回 `data.json`。樣本數 < 12 筆時退回舊版「校準區間線性映射」當佔位：
+   ```
+   pct = clamp((value - cal_min) / (cal_max - cal_min), 0, 1)
+   ```
 
 2. **單市場分數** = 四因子積極度的**加權平均**（權重來自滑桿，預設等權重）。
 
 3. **整體分數** = 美股分數 × 美股配置 + 台股分數 × 台股配置（配置滑桿，預設 50/50）。
 
-> 目前 `scoreOf()` 用「校準區間線性映射」當佔位。正式版只要把**這一個函式**換成「對過去 N 年取百分位 (percentile rank)」，其餘 UI 不用動。
+> 回測（`backtest/scores.py`）用「擴張視窗百分位排名」：每個時點只用至今為止的樣本算百分位，
+> 無 lookahead；儀表板（`index.html`）則用「至今全部歷史」算今天的百分位，邏輯一致、樣本範圍不同。
 
 ---
 
@@ -123,7 +131,7 @@ python3 fetch_data.py
 
 ## 兩個工程上的坑（決定分數卡可不可信）
 
-1. **標準化（最關鍵）**：原始數值沒有意義（CAPE=30 高不高要對照自身歷史）。目前用線性映射當佔位，正式版改成「對過去 N 年取百分位」。
+1. **標準化（最關鍵）**：原始數值沒有意義（CAPE=30 高不高要對照自身歷史）。已改成「對自身歷史取百分位排名」（`pctile_ref`），樣本不足時退回線性映射。
 2. **權重別過度調參**：彙總權重最容易自欺。v1 用等權重，別拿近期行情去 tune（那就是 overfitting）。
 
 回測注意：景氣燈號、PMI 這類總經數據有發布落差且會事後修正，回測要用「當時可得」的值，避免 lookahead bias。每個因子的 `scoreOf()` 輸出就是未來回測的一個 feature，資料結構已對齊 vectorbt。
@@ -144,12 +152,37 @@ python run_backtest.py --market TW --price data/tw_price.csv --factors data/tw_f
 
 細節（策略、防 lookahead、資料源驗證狀態）見 [backtest/README.md](backtest/README.md)。
 
+### 回測欄位 / 指標說明
+
+儀表板下方「📈 回測策略比較 / 📊 Portfolio 回測 / 🌱 成長股選股 Agent」每個欄位、表頭、
+策略名稱滑鼠移上去都有說明文字（亦彙整於區塊上方「📖 名詞解釋」收合區）。對照表：
+
+| 欄位 / 名詞 | 意義 |
+| --- | --- |
+| **CAGR** | 年化報酬率：把整段回測期間的總報酬，換算成「等效的每年成長率」，方便不同長度的回測互相比較。 |
+| **Sharpe** | 夏普比率：月報酬平均值 ÷ 月報酬標準差 × √12（年化）。每承擔一單位波動換到多少報酬，越高越好。 |
+| **MaxDD** | 最大回撤：從歷史最高點到之後最低點的最大跌幅(%)，越接近 0 代表最壞情況虧損越小。 |
+| **期末資產** | 以期初 100 為基準，回測結束時的資產淨值。 |
+| **回測年數** | 依資料起訖日期計算的總年數。 |
+| **買進持有** | 對照組：一開始全部資金買進並持有到底，不做再平衡，用來檢驗主動調整權重是否真的更好。 |
+| **策略** | 把市場溫度合成分數(0–100)映射成股票目標權重(0–100%)的規則，每月依此再平衡（見 `backtest/strategies.py`）。 |
+| **Universe** | Portfolio 回測涵蓋的資產池（如美股板塊/因子 ETF、台股 ETF），決定買進持有基準與輪動範圍。 |
+| **Top-N** | 每月從候選池依因子排名挑出最被看好的前 N 檔，等權重持有、每月換股。 |
+| **候選池** | 成長股選股 Agent 每月排名的股票清單，Top-N 從這裡面選出。 |
+| **換手成本** | 每次買進/賣出的單邊交易成本估計(%)，用來扣抵頻繁換股的損耗。 |
+| **lag_months** | 因子或排名數據延後幾個月才視為「當時可得」，避免回測用到未來資訊（lookahead bias）。 |
+| **起始資金** | 回測開始時的虛擬本金，用來換算權益曲線。 |
+| **市場溫度合成分數** | 估值/情緒/景氣/利率四個因子的積極度依權重加權平均，數字越高代表訊號越偏「積極/逆向加碼」。 |
+| **積極度（百分位）** | 目前數值在「至今所有歷史月度數值」中的百分位排名，再依方向(invert)轉換成 0–100。 |
+
+> 之後新增任何回測欄位/指標，請同步在 `index.html` 的 `KPI_INFO`/`KPI_LABELS` 與本表補上說明。
+
 ## 路線圖
 
 - [x] 用 FinMind 接台股估值(2330 PER 代理)、情緒(融資餘額)
 - [x] vectorbt 回測驗證燈號（台美雙市場，含 lookahead 防護，支援多標的並列比較）
-- [ ] 接台股景氣對策信號（國發會穩定端點）
-- [ ] `scoreOf()` 換成歷史百分位（取代線性映射）
+- [x] 接台股景氣對策信號（data.gov.tw 景氣指標及燈號, dataset 6099, 國發會）
+- [x] `scoreOf()` 換成歷史百分位（取代線性映射）
 - [ ] 燈號翻轉/跨閾值時推 Telegram 通知
 
 ## 檔案結構
@@ -162,7 +195,8 @@ python run_backtest.py --market TW --price data/tw_price.csv --factors data/tw_f
 ├── requirements.txt
 ├── backtest/                  # vectorbt 回測（驗證燈號歷史有效性）
 │   ├── fetch_history.py       #   抓因子+價格歷史 → data/*.csv
-│   ├── scores.py             #   因子歷史 → 月頻目標權重（共用 data.json）
+│   ├── scores.py             #   因子歷史 → 月頻目標權重（共用 data.json，歷史百分位排名）
+│   ├── update_percentiles.py #   data/*_factors.csv → data.json 的 pctile_ref
 │   ├── vbt_engine.py         #   vectorbt 模擬 + KPI 抽取（共用模組）
 │   ├── run_backtest.py       #   月度再平衡 vs 買進持有，可多標的並列比較，印 KPI
 │   ├── portfolio.py          #   多資產 Universe 輪動引擎

@@ -3,7 +3,7 @@
 用 **vectorbt** 驗證儀表板那套燈號：把合成分數當作「股票目標權重」做月度再平衡，
 對比 100% 買進持有，看歷史上能不能**用較小的回撤換取相近報酬**（風險調整後更好）。
 
-> 與儀表板共用同一套因子設定（`../data.json` 的 `cal_min/cal_max/invert/weights`），
+> 與儀表板共用同一套因子設定（`../data.json` 的 `invert/weights`，標準化用歷史百分位排名），
 > 所以回測驗證的就是你在儀表板上看到的邏輯，兩邊不會不一致。
 
 ## 策略（v1）
@@ -40,7 +40,8 @@ python run_backtest.py --market US --price data/us_price.csv --factors data/us_f
 | 檔案 | 作用 |
 | --- | --- |
 | `fetch_history.py` | 抓因子+價格歷史 → `data/*.csv`（需網路，每源獨立 try） |
-| `scores.py` | 因子歷史 → 月頻目標權重（共用 `../data.json` 設定，含 lookahead 防護） |
+| `scores.py` | 因子歷史 → 月頻目標權重（共用 `../data.json` 設定，歷史百分位排名 + lookahead 防護） |
+| `update_percentiles.py` | `data/*_factors.csv` → 寫回 `../data.json` 的 `pctile_ref`（供儀表板 `scoreOf()` 用） |
 | `vbt_engine.py` | vectorbt 模擬（target-percent 再平衡）+ KPI 抽取，供 `run_backtest.py`/`portfolio.py` 共用 |
 | `run_backtest.py` | vectorbt 月度再平衡 vs 買進持有，可同時對多標的並列比較，印 KPI |
 
@@ -86,6 +87,7 @@ python run_backtest.py --market US --price data/us_price.csv --factors data/us_f
 | 美股 | 價格 SPY | Yahoo chart API（stooq 備援） | ✅ 可抓 |
 | 台股 | 估值 2330 PER | FinMind `TaiwanStockPER` | ✅ 可抓 |
 | 台股 | 情緒 融資餘額 | FinMind 整體融資 | ✅ 可抓 |
+| 台股 | 景氣對策信號 | data.gov.tw `景氣指標及燈號`（dataset 6099, 國發會） | ✅ 可抓 |
 | 台股 | 外資買賣超 | FinMind `TaiwanStockTotalInstitutionalInvestors` | ✅ 可抓 |
 | 台股 | 價格 0050 | FinMind `TaiwanStockPrice` | ✅ 可抓 |
 
@@ -99,9 +101,8 @@ python run_backtest.py --market US --price data/us_price.csv --factors data/us_f
 
 ## 已知限制 / 下一步
 
-- 台股「景氣對策信號」尚未接線，故 TW 回測目前用 估值+情緒(+外資) 重分配權重。
-- `score_of` 用固定校準區間線性映射（與儀表板一致、無 lookahead）。進階版可改「擴張窗
-  百分位」讓標準化更貼合歷史分布（見根 README 坑 1）。
+- `score_of` 用「擴張窗百分位排名」（與儀表板一致、無 lookahead），早期樣本數少時百分位
+  較不穩定，但會隨歷史資料增加自動收斂。
 - 可加交易成本/滑價、改變再平衡頻率、或把分數做成連續 vs 三檔燈號比較。
 
 ## Portfolio 回測（`portfolio.py` / `run_portfolio.py`）
