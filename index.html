@@ -126,6 +126,8 @@
   .series-toggles { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 0 0 10px; }
   .series-toggle { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted); cursor: pointer; user-select: none; }
   .series-toggle input { accent-color: var(--accent); cursor: pointer; }
+  .dd-toggle { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted); cursor: pointer; user-select: none; margin: 0 0 10px; }
+  .dd-toggle input { accent-color: var(--accent); cursor: pointer; }
   .series-toggle.off { opacity: .45; }
 
   /* Dropdown controls (Portfolio Universe × Strategy) */
@@ -305,6 +307,8 @@ let DATA = null;
 const STATE = {
   market: "US",
   btHidden: { US: new Set(), TW: new Set() },     // 隱藏的曲線名稱（buyhold / 策略名）
+  btSymbol: { US: null, TW: null },               // 單資產回測目前選擇的標的
+  btShowDrawdown: { US: true, TW: true },         // 是否顯示回撤(underwater)圖
   growthTopN: { US: null, TW: null },             // null = 用資料預設 top_n
   portfolio: { US: { universe: null, strategy: null }, TW: { universe: null, strategy: null } },
 };
@@ -581,6 +585,25 @@ function drawEquityChart(canvas, mktData, hidden) {
   drawSeriesChart(canvas, bh.dates, series);
 }
 
+function drawDrawdownChart(canvas, symData, hidden) {
+  hidden = hidden || new Set();
+  const bh = symData.buyhold_drawdown_monthly;
+  const strategies = symData.strategies || {};
+  if (!bh || !bh.dates || bh.dates.length < 2) return;
+
+  const series = [];
+  if (!hidden.has("buyhold")) {
+    series.push({ name: "buyhold", label: "買進持有", values: bh.values, color: stratColor("buyhold"), dashed: true });
+  }
+  for (const [name, s] of Object.entries(strategies)) {
+    if (hidden.has(name) || !s.drawdown_monthly) continue;
+    series.push({ name, label: name, values: s.drawdown_monthly.values, color: stratColor(name), dashed: false });
+  }
+  const ctx = canvas.getContext("2d");
+  if (series.length === 0) { ctx.clearRect(0, 0, canvas.width, canvas.height); return; }
+  drawSeriesChart(canvas, bh.dates, series);
+}
+
 function drawGrowthChart(canvas, g, recomputed, n) {
   const ew = g.equal_weight_equity_monthly, bh = g.benchmark_equity_monthly;
   if (!recomputed || !recomputed.dates || recomputed.dates.length < 2) return;
@@ -607,9 +630,62 @@ function kpisFromEquity(dates, values) {
     : 0;
   const std = Math.sqrt(variance);
   const sharpe = std > 0 ? (mean / std) * Math.sqrt(12) : 0;
-  let peak = values[0], maxDd = 0;
-  for (const v of values) { peak = Math.max(peak, v); maxDd = Math.min(maxDd, (v - peak) / peak); }
-  return { cagr, sharpe, max_dd: maxDd, final: values[values.length - 1], years };
+  const downside = rets.filter(r => r < 0);
+  const downsideVar = downside.length > 0
+    ? downside.reduce((a, b) => a + b * b, 0) / downside.length
+    : 0;
+  const downsideStd = Math.sqrt(downsideVar);
+  const sortino = downsideStd > 0 ? (mean / downsideStd) * Math.sqrt(12) : null;
+  let peak = values[0], maxDd = 0, ddRun = 0, maxDdRun = 0;
+  for (const v of values) {
+    peak = Math.max(peak, v);
+    const dd = (v - peak) / peak;
+    maxDd = Math.min(maxDd, dd);
+    ddRun = dd < 0 ? ddRun + 1 : 0;
+    maxDdRun = Math.max(maxDdRun, ddRun);
+  }
+  const calmar = maxDd < 0 ? cagr / Math.abs(maxDd) : null;
+  const winRate = rets.filter(r => r > 0).length / rets.length;
+  const maxDdDuration = Math.round(maxDdRun * (365.25 / 12));
+  return {
+    cagr, sharpe, sortino, calmar, max_dd: maxDd,
+    max_dd_duration: maxDdDuration, win_rate: winRate,
+    final: values[values.length - 1], years,
+  };
+}
+
+// KPI 表格欄位（共用於回測/Portfolio/成長股）：[標籤, 取值函式, 格式化函式, 越大越好?]
+const KPI_COLUMNS = [
+  ["CAGR",    k => k.cagr,            v => fmt(v, 2, "%"),              true],
+  ["Sharpe",  k => k.sharpe,          v => v.toFixed(2),                true],
+  ["Sortino", k => k.sortino,         v => (v == null ? "-" : v.toFixed(2)), true],
+  ["Calmar",  k => k.calmar,          v => (v == null ? "-" : v.toFixed(2)), true],
+  ["MaxDD",   k => k.max_dd,          v => fmt(v, 2, "%"),              true],  // 越接近 0 越好
+  ["MaxDD天", k => k.max_dd_duration, v => (v == null ? "-" : v + "d"), false], // 越小越好
+  ["勝率",     k => k.win_rate,        v => (v == null ? "-" : fmt(v, 1, "%")), true],
+];
+
+function kpiHeaderRow() {
+  const tr = el("tr");
+  tr.appendChild(el("th", null, "策略"));
+  for (const [label] of KPI_COLUMNS) tr.appendChild(el("th", null, label));
+  return tr;
+}
+
+// highlightVsBh: 是否與 bk（買進持有 KPI）比較，較優者標示 kpi-win
+function appendKpiCells(row, k, bk, highlightVsBh) {
+  for (const [, getter, format, higherBetter] of KPI_COLUMNS) {
+    const v = getter(k);
+    let cls = null;
+    if (highlightVsBh && bk && v != null) {
+      const bv = getter(bk);
+      if (bv != null) {
+        const better = higherBetter ? v >= bv : v <= bv;
+        if (better) cls = "kpi-win";
+      }
+    }
+    row.appendChild(el("td", cls, v == null ? "-" : format(v)));
+  }
 }
 
 function recomputeTopN(g, n) {
@@ -694,14 +770,48 @@ function renderBacktestMarket() {
     return;
   }
 
+  const symbols = mktData.symbols || {};
+  const symbolKeys = Object.keys(symbols);
+  if (symbolKeys.length === 0) {
+    content.appendChild(el("div", "bt-empty", "此市場目前沒有回測結果。"));
+    return;
+  }
+  if (!STATE.btSymbol[mkt] || !symbolKeys.includes(STATE.btSymbol[mkt])) {
+    STATE.btSymbol[mkt] = symbolKeys[0];
+  }
+
   const p = mktData.period;
   const div = el("div", "bt-market");
   div.appendChild(el("div", "bt-market-title",
     (BT_MKT_LABELS[mkt] || mkt) +
     `<span>${p.start} ~ ${p.end} &nbsp;${p.years.toFixed(1)} 年</span>`));
 
+  // ── 標的選單 ──────────────────────────────────────────────────────────────
+  if (symbolKeys.length > 1) {
+    const controls = el("div", "bt-controls");
+    const symLabel = document.createElement("label");
+    symLabel.appendChild(document.createTextNode("標的："));
+    const symSelect = document.createElement("select");
+    symSelect.className = "bt-select";
+    for (const k of symbolKeys) {
+      const opt = document.createElement("option");
+      opt.value = k; opt.textContent = k;
+      if (k === STATE.btSymbol[mkt]) opt.selected = true;
+      symSelect.appendChild(opt);
+    }
+    symSelect.addEventListener("change", () => {
+      STATE.btSymbol[mkt] = symSelect.value;
+      renderBacktestMarket();
+    });
+    symLabel.appendChild(symSelect);
+    controls.appendChild(symLabel);
+    div.appendChild(controls);
+  }
+
+  const symData = symbols[STATE.btSymbol[mkt]];
+  const strategies = symData.strategies || {};
+
   // ── 曲線顯示切換 ───────────────────────────────────────────────────────────
-  const strategies = mktData.strategies || {};
   const hidden = STATE.btHidden[mkt] ?? (STATE.btHidden[mkt] = new Set());
   const toggles = el("div", "series-toggles");
   const allSeries = [
@@ -717,29 +827,51 @@ function renderBacktestMarket() {
   canvas.style.width = "100%";
   chartWrap.appendChild(canvas);
 
+  // ── 回撤(underwater)圖切換 + canvas ───────────────────────────────────────
+  const ddToggleLabel = document.createElement("label");
+  ddToggleLabel.className = "dd-toggle";
+  const ddCb = document.createElement("input");
+  ddCb.type = "checkbox";
+  ddCb.checked = STATE.btShowDrawdown[mkt] !== false;
+  ddToggleLabel.appendChild(ddCb);
+  ddToggleLabel.appendChild(document.createTextNode("顯示回撤(underwater)圖"));
+
+  const ddWrap = el("div", "chart-wrap");
+  const ddCanvas = document.createElement("canvas");
+  ddCanvas.style.width = "100%";
+  ddWrap.appendChild(ddCanvas);
+  ddWrap.style.display = ddCb.checked ? "" : "none";
+
+  ddCb.addEventListener("change", () => {
+    STATE.btShowDrawdown[mkt] = ddCb.checked;
+    ddWrap.style.display = ddCb.checked ? "" : "none";
+    if (ddCb.checked) drawDrawdownChart(ddCanvas, symData, hidden);
+  });
+
   for (const s of allSeries) {
-    toggles.appendChild(buildSeriesToggle(s, hidden, () => drawEquityChart(canvas, mktData, hidden)));
+    toggles.appendChild(buildSeriesToggle(s, hidden, () => {
+      drawEquityChart(canvas, symData, hidden);
+      if (ddCb.checked) drawDrawdownChart(ddCanvas, symData, hidden);
+    }));
   }
   div.appendChild(toggles);
+  div.appendChild(ddToggleLabel);
   layout.appendChild(chartWrap);
+  layout.appendChild(ddWrap);
 
   // ── KPI table ──────────────────────────────────────────────────────────
   const tableWrap = el("div", "strat-table-wrap");
   const table = el("table", "strat-table");
 
   // Header
-  const thead = el("tr");
-  ["策略", "CAGR", "Sharpe", "MaxDD"].forEach(h => thead.appendChild(el("th", null, h)));
-  table.appendChild(thead);
+  table.appendChild(kpiHeaderRow());
 
   // Buy-and-hold row
-  const bk = mktData.buyhold_kpis;
+  const bk = symData.buyhold_kpis;
   const bhRow = el("tr", "buyhold");
   const bhDot = `<span class="color-dot" style="background:${stratColor("buyhold")}"></span>`;
   bhRow.appendChild(el("td", null, bhDot + "買進持有"));
-  bhRow.appendChild(el("td", null, fmt(bk.cagr, 2, "%")));
-  bhRow.appendChild(el("td", null, bk.sharpe.toFixed(2)));
-  bhRow.appendChild(el("td", null, fmt(bk.max_dd, 2, "%")));
+  appendKpiCells(bhRow, bk, null, false);
   table.appendChild(bhRow);
 
   // Strategy rows
@@ -748,13 +880,7 @@ function renderBacktestMarket() {
     const row = el("tr");
     const dot = `<span class="color-dot" style="background:${stratColor(name)}"></span>`;
     row.appendChild(el("td", null, dot + name));
-    // Highlight winner per metric vs buy-hold
-    const cagrBetter = k.cagr >= bk.cagr;
-    const sharpeBetter = k.sharpe >= bk.sharpe;
-    const ddBetter = k.max_dd > bk.max_dd; // less negative = better
-    row.appendChild(el("td", cagrBetter ? "kpi-win" : null, fmt(k.cagr, 2, "%")));
-    row.appendChild(el("td", sharpeBetter ? "kpi-win" : null, k.sharpe.toFixed(2)));
-    row.appendChild(el("td", ddBetter ? "kpi-win" : null, fmt(k.max_dd, 2, "%")));
+    appendKpiCells(row, k, bk, true);
     table.appendChild(row);
   }
   tableWrap.appendChild(table);
@@ -785,8 +911,11 @@ function renderBacktestMarket() {
 
   content.appendChild(div);
 
-  // Draw chart after layout is painted
-  requestAnimationFrame(() => drawEquityChart(canvas, mktData, hidden));
+  // Draw charts after layout is painted
+  requestAnimationFrame(() => {
+    drawEquityChart(canvas, symData, hidden);
+    if (ddCb.checked) drawDrawdownChart(ddCanvas, symData, hidden);
+  });
 }
 
 // ── 成長股選股 Agent 渲染 ─────────────────────────────────────────────────────
@@ -870,9 +999,7 @@ function renderGrowthMarket() {
     const topKpis = kpisFromEquity(recomputed.dates, recomputed.values);
 
     table.innerHTML = "";
-    const thead = el("tr");
-    ["", "CAGR", "Sharpe", "MaxDD"].forEach(h => thead.appendChild(el("th", null, h)));
-    table.appendChild(thead);
+    table.appendChild(kpiHeaderRow());
 
     const rows = [
       [`Top-${n} 選股`, topKpis, "#2ecc71"],
@@ -884,9 +1011,7 @@ function renderGrowthMarket() {
       const row = el("tr");
       const dot = `<span class="color-dot" style="background:${color}"></span>`;
       row.appendChild(el("td", null, dot + label));
-      row.appendChild(el("td", null, fmt(k.cagr, 2, "%")));
-      row.appendChild(el("td", null, k.sharpe.toFixed(2)));
-      row.appendChild(el("td", null, fmt(k.max_dd, 2, "%")));
+      appendKpiCells(row, k, null, false);
       table.appendChild(row);
     }
 
@@ -987,24 +1112,18 @@ function renderPortfolioMarket() {
     drawSeriesChart(canvas, bh.dates, series);
 
     table.innerHTML = "";
-    const thead = el("tr");
-    ["策略", "CAGR", "Sharpe", "MaxDD"].forEach(h => thead.appendChild(el("th", null, h)));
-    table.appendChild(thead);
+    table.appendChild(kpiHeaderRow());
 
     const bk = uni.buyhold_kpis;
     const bhRow = el("tr", "buyhold");
     bhRow.appendChild(el("td", null, `<span class="color-dot" style="background:${stratColor("buyhold")}"></span>買進持有 ${uni.benchmark || ""}`));
-    bhRow.appendChild(el("td", null, fmt(bk.cagr, 2, "%")));
-    bhRow.appendChild(el("td", null, bk.sharpe.toFixed(2)));
-    bhRow.appendChild(el("td", null, fmt(bk.max_dd, 2, "%")));
+    appendKpiCells(bhRow, bk, null, false);
     table.appendChild(bhRow);
 
     const k = strat.kpis;
     const row = el("tr");
     row.appendChild(el("td", null, `<span class="color-dot" style="background:${stratColor(st.strategy)}"></span>${st.strategy}`));
-    row.appendChild(el("td", k.cagr >= bk.cagr ? "kpi-win" : null, fmt(k.cagr, 2, "%")));
-    row.appendChild(el("td", k.sharpe >= bk.sharpe ? "kpi-win" : null, k.sharpe.toFixed(2)));
-    row.appendChild(el("td", k.max_dd > bk.max_dd ? "kpi-win" : null, fmt(k.max_dd, 2, "%")));
+    appendKpiCells(row, k, bk, true);
     table.appendChild(row);
 
     if (strat.strategy_description) {

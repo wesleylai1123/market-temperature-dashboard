@@ -23,6 +23,18 @@ on:
         description: "成長股 Agent 每月選股數"
         default: "5"
         required: false
+      extra_symbols_us:
+        description: "美股額外標的（逗號，與 SPY 並列比較同一套策略）：例 AAPL,NVDA"
+        default: ""
+        required: false
+      extra_symbols_tw:
+        description: "台股額外標的（逗號，與 0050 並列比較同一套策略）：例 2330,2317"
+        default: ""
+        required: false
+      portfolio_symbols:
+        description: "Portfolio 自訂標的清單（逗號，留空=用 --universe）：例 SPY,QQQ,GLD"
+        default: ""
+        required: false
       commit_results:
         description: "將 backtest_results.json 提交回儲存庫（供儀表板顯示）"
         default: "false"
@@ -71,9 +83,15 @@ jobs:
             factors="data/${lower}_factors.csv"
             echo "### $mkt" >> "$GITHUB_STEP_SUMMARY"
             if [ -f "$price" ] && [ -f "$factors" ]; then
+              SYMBOLS_FLAG=""
+              if [ "$mkt" = "US" ] && [ -n "${{ inputs.extra_symbols_us }}" ]; then
+                SYMBOLS_FLAG="--symbols ${{ inputs.extra_symbols_us }}"
+              elif [ "$mkt" = "TW" ] && [ -n "${{ inputs.extra_symbols_tw }}" ]; then
+                SYMBOLS_FLAG="--symbols ${{ inputs.extra_symbols_tw }}"
+              fi
               echo '```' >> "$GITHUB_STEP_SUMMARY"
               python run_backtest.py --market "$mkt" --price "$price" --factors "$factors" \
-                $STRAT_FLAG \
+                $STRAT_FLAG $SYMBOLS_FLAG \
                 --output-json "results/${lower}_results.json" \
                 | tee -a "$GITHUB_STEP_SUMMARY"
               echo '```' >> "$GITHUB_STEP_SUMMARY"
@@ -103,7 +121,7 @@ jobs:
 
       # ── Step 3: 多資產 Portfolio 回測（選用）────────────────────────────────
       - name: Run portfolio backtest
-        if: ${{ inputs.universe != '' }}
+        if: ${{ inputs.universe != '' || inputs.portfolio_symbols != '' }}
         env:
           FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }}
         run: |
@@ -114,6 +132,17 @@ jobs:
 
           echo "## Portfolio 回測（Universe × Strategy）" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+          if [ -n "${{ inputs.portfolio_symbols }}" ]; then
+            # 自訂標的清單（單一 ad-hoc Universe，預設視為 US 市場）
+            python run_portfolio.py \
+              --market US \
+              --start "${{ inputs.start }}" \
+              --symbols "${{ inputs.portfolio_symbols }}" \
+              --strategy "$STRAT_ARG" \
+              --output-json results/us_portfolio.json \
+              | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
 
           # US
           US_UNI=$(echo "${{ inputs.universe }}" | tr ',' '\n' | grep -E '^us_' | tr '\n' ',' | sed 's/,$//')

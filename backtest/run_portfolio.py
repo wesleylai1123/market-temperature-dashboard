@@ -375,6 +375,11 @@ def main() -> None:
     ap.add_argument("--start",  default="2010-01-01", help="回測起始日 YYYY-MM-DD")
     ap.add_argument("--universe",  default=None,
                     help="Universe 名稱（逗號分隔，預設依市場選所有）")
+    ap.add_argument("--symbols", default=None,
+                    help="自訂標的清單（逗號分隔），建立 ad-hoc Universe 'custom'，"
+                         "曝險比例由 --strategy 決定，標的池固定不隨分數切換。例：--symbols AAPL,NVDA,MSFT")
+    ap.add_argument("--benchmark", default=None,
+                    help="搭配 --symbols 使用：自訂 Universe 的買進持有對照標的（預設取清單第一檔）")
     ap.add_argument("--strategy",  default="band,conservative",
                     help="Strategy 名稱（逗號分隔）")
     ap.add_argument("--skip-fetch", action="store_true",
@@ -390,8 +395,19 @@ def main() -> None:
         list_strategies()
         return
 
-    # 決定 universe
-    if args.universe:
+    # 自訂標的清單 → ad-hoc Universe（固定持有，不隨分數切換標的池，僅曝險比例會變）
+    if args.symbols:
+        symbols = [s.strip() for s in args.symbols.split(",") if s.strip()]
+        if not symbols:
+            ap.error("--symbols 不可為空")
+        from universe import Universe, register as register_universe
+        register_universe(Universe(
+            "custom", args.market, f"自訂標的：{', '.join(symbols)}",
+            aggressive=symbols, neutral=symbols, defensive=symbols,
+            benchmark=args.benchmark or symbols[0],
+        ))
+        uni_names = ["custom"]
+    elif args.universe:
         uni_names = [u.strip() for u in args.universe.split(",")]
     else:
         uni_names = [n for n, u in UNI_REG.items() if u.market == args.market]
