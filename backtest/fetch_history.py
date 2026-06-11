@@ -204,6 +204,8 @@ def tw_foreign(start):
 def _try(label, fn):
     try:
         s = fn()
+        if s.index.duplicated().any():
+            s = s[~s.index.duplicated(keep="last")]
         print(f"  ✅ {label}: {len(s)} 筆")
         return s
     except Exception as exc:  # noqa: BLE001
