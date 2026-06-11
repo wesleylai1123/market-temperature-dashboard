@@ -354,6 +354,7 @@ def build(start: str):
     if tre is not None:
         us_cols += [tre["cycle"], tre["rate"]]
     if us_cols:
+        us_cols = [s[~s.index.duplicated(keep="last")] for s in us_cols]
         us = pd.concat(us_cols, axis=1).sort_index()
         us = us[us.index >= start_ts]
         us.index.name = "date"
@@ -373,6 +374,7 @@ def build(start: str):
         _try("外資買賣超", lambda: tw_foreign(start)),
     ) if s is not None]
     if tw_cols:
+        tw_cols = [s[~s.index.duplicated(keep="last")] for s in tw_cols]
         tw = pd.concat(tw_cols, axis=1).sort_index()
         tw = tw[tw.index >= start_ts]
         tw.index.name = "date"
