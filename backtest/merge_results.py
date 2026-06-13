@@ -37,13 +37,34 @@ def merge(
     portfolio_us_path: str | None = None,
     portfolio_tw_path: str | None = None,
 ) -> None:
+    existing: dict = {}
+    if Path(out_path).exists():
+        try:
+            existing = json.loads(Path(out_path).read_text("utf-8"))
+        except (OSError, json.JSONDecodeError):
+            existing = {}
+
     markets = _load_pair(us_path, tw_path, "")
+    existing_markets = existing.get("markets", {})
     for mkt in ("US", "TW"):
         if mkt not in markets:
-            print(f"  ⚠ {mkt}: 無資料")
+            if mkt in existing_markets:
+                print(f"  ↺ {mkt}: 本次無資料，保留舊結果")
+                markets[mkt] = existing_markets[mkt]
+            else:
+                print(f"  ⚠ {mkt}: 無資料")
 
     growth = _load_pair(growth_us_path, growth_tw_path, "growth ")
+    existing_growth = existing.get("growth", {})
+    for mkt in ("US", "TW"):
+        if mkt not in growth and mkt in existing_growth:
+            growth[mkt] = existing_growth[mkt]
+
     portfolio = _load_pair(portfolio_us_path, portfolio_tw_path, "portfolio ")
+    existing_portfolio = existing.get("portfolio", {})
+    for mkt in ("US", "TW"):
+        if mkt not in portfolio and mkt in existing_portfolio:
+            portfolio[mkt] = existing_portfolio[mkt]
 
     if not markets:
         print("沒有任何市場結果，略過輸出。")
