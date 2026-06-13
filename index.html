@@ -139,6 +139,11 @@
   }
   .bt-select:focus { outline: none; border-color: var(--accent); }
   .bt-uni-desc { color: var(--muted); font-size: 11px; margin: -4px 0 12px; }
+  .bt-reset-btn {
+    font-size: 11px; background: var(--panel-2); color: var(--muted); border: 1px solid var(--line);
+    border-radius: 8px; padding: 5px 10px; cursor: pointer; font-family: inherit;
+  }
+  .bt-reset-btn:hover { color: var(--text); border-color: var(--accent); }
 
   /* Top-N slider (成長股 Agent) */
   .topn-control { display: flex; align-items: center; gap: 10px; margin: 0 0 10px; font-size: 12px; color: var(--muted); }
@@ -325,6 +330,7 @@ const STATE = {
   market: "US",
   btHidden: { US: new Set(), TW: new Set() },     // 隱藏的曲線名稱（buyhold / 策略名）
   btSymbol: { US: null, TW: null },               // 單資產回測目前選擇的標的
+  btRange: { US: null, TW: null },                // 自訂回測區間 {start, end}（YYYY-MM），null = 完整期間
   btShowDrawdown: { US: true, TW: true },         // 是否顯示回撤(underwater)圖
   growthTopN: { US: null, TW: null },             // null = 用資料預設 top_n
   portfolio: { US: { universe: null, strategy: null }, TW: { universe: null, strategy: null } },
@@ -746,6 +752,67 @@ function kpisFromEquity(dates, values) {
   };
 }
 
+// ── 自訂回測區間：依月份篩選 + 重新正規化 + 重算 KPI/回撤 ──────────────────────────
+// 找出 [startYM, endYM]（"YYYY-MM"）對應的 dates 索引範圍（含端點）
+function rangeIndices(dates, startYM, endYM) {
+  let startIdx = 0, endIdx = dates.length - 1;
+  if (startYM) {
+    const i = dates.findIndex(d => d.slice(0, 7) >= startYM);
+    if (i >= 0) startIdx = i;
+  }
+  if (endYM) {
+    for (let i = dates.length - 1; i >= 0; i--) {
+      if (dates[i].slice(0, 7) <= endYM) { endIdx = i; break; }
+    }
+  }
+  return [startIdx, endIdx];
+}
+
+// 切片並重新正規化，讓區間起點 = 100（與 monthly_export 的正規化方式一致）
+function sliceNormalize(values, startIdx, endIdx) {
+  const slice = values.slice(startIdx, endIdx + 1);
+  if (slice.length === 0) return slice;
+  const base = slice[0];
+  return slice.map(v => (v / base) * 100);
+}
+
+// 由權益序列重算回撤（%，<=0）；區間內以區間自身的歷史新高為基準
+function ddFromEquity(values) {
+  let peak = values.length ? values[0] : 0;
+  return values.map(v => {
+    peak = Math.max(peak, v);
+    return peak > 0 ? ((v - peak) / peak) * 100 : 0;
+  });
+}
+
+// 依自訂區間重建 symData：每條曲線重新正規化、KPI/回撤改以區間自身重算
+function buildRangedSymData(symData, startIdx, endIdx) {
+  const bh = symData.buyhold_equity_monthly;
+  const dates = bh.dates.slice(startIdx, endIdx + 1);
+  if (dates.length < 2) return null;
+
+  const bhValues = sliceNormalize(bh.values, startIdx, endIdx);
+
+  const strategies = {};
+  for (const [name, s] of Object.entries(symData.strategies || {})) {
+    const values = sliceNormalize(s.equity_monthly.values, startIdx, endIdx);
+    strategies[name] = {
+      description: s.description,
+      kpis: kpisFromEquity(dates, values),
+      equity_monthly: { dates, values },
+      drawdown_monthly: { dates, values: ddFromEquity(values) },
+      trades: (s.trades || []).filter(t => t.date >= dates[0] && t.date <= dates[dates.length - 1]),
+    };
+  }
+
+  return {
+    buyhold_kpis: kpisFromEquity(dates, bhValues),
+    buyhold_equity_monthly: { dates, values: bhValues },
+    buyhold_drawdown_monthly: { dates, values: ddFromEquity(bhValues) },
+    strategies,
+  };
+}
+
 // KPI 表格欄位（共用於回測/Portfolio/成長股）：[標籤, 取值函式, 格式化函式, 越大越好?]
 const KPI_COLUMNS = [
   ["CAGR",    k => k.cagr,            v => fmt(v, 2, "%"),              true,  "cagr"],
@@ -881,9 +948,12 @@ function renderBacktestMarket() {
   if (periodSpan) { periodSpan.title = KPI_INFO.period; periodSpan.classList.add("kpi-info"); }
   div.appendChild(titleEl);
 
-  // ── 標的選單 ──────────────────────────────────────────────────────────────
+  const symData = symbols[STATE.btSymbol[mkt]];
+
+  // ── 標的／區間選單 ────────────────────────────────────────────────────────
+  const controls = el("div", "bt-controls");
+
   if (symbolKeys.length > 1) {
-    const controls = el("div", "bt-controls");
     const symLabel = document.createElement("label");
     symLabel.appendChild(document.createTextNode("標的："));
     const symSelect = document.createElement("select");
@@ -900,11 +970,71 @@ function renderBacktestMarket() {
     });
     symLabel.appendChild(symSelect);
     controls.appendChild(symLabel);
-    div.appendChild(controls);
   }
 
-  const symData = symbols[STATE.btSymbol[mkt]];
-  const strategies = symData.strategies || {};
+  // 回測區間（月）：預設為完整期間，可自訂起訖月份重算 KPI/曲線/回撤
+  const fullDates = symData.buyhold_equity_monthly.dates;
+  const fullStartYM = fullDates[0].slice(0, 7);
+  const fullEndYM = fullDates[fullDates.length - 1].slice(0, 7);
+  let range = STATE.btRange[mkt];
+  if (!range) range = { start: fullStartYM, end: fullEndYM };
+  const isCustomRange = range.start !== fullStartYM || range.end !== fullEndYM;
+
+  const rangeLabel = document.createElement("label");
+  rangeLabel.appendChild(document.createTextNode("區間："));
+  const startInput = document.createElement("input");
+  startInput.type = "month";
+  startInput.className = "bt-select";
+  startInput.min = fullStartYM; startInput.max = fullEndYM;
+  startInput.value = range.start;
+  const endInput = document.createElement("input");
+  endInput.type = "month";
+  endInput.className = "bt-select";
+  endInput.min = fullStartYM; endInput.max = fullEndYM;
+  endInput.value = range.end;
+  rangeLabel.appendChild(startInput);
+  rangeLabel.appendChild(document.createTextNode("～"));
+  rangeLabel.appendChild(endInput);
+  controls.appendChild(rangeLabel);
+
+  const resetRangeBtn = document.createElement("button");
+  resetRangeBtn.type = "button";
+  resetRangeBtn.className = "bt-reset-btn";
+  resetRangeBtn.textContent = "重設區間";
+  resetRangeBtn.title = "回到完整回測期間";
+  resetRangeBtn.style.visibility = isCustomRange ? "visible" : "hidden";
+  controls.appendChild(resetRangeBtn);
+
+  function applyRange() {
+    let s = startInput.value, e = endInput.value;
+    if (!s || !e || s > e) return;
+    if (s < fullStartYM) s = fullStartYM;
+    if (e > fullEndYM) e = fullEndYM;
+    STATE.btRange[mkt] = (s === fullStartYM && e === fullEndYM) ? null : { start: s, end: e };
+    renderBacktestMarket();
+  }
+  startInput.addEventListener("change", applyRange);
+  endInput.addEventListener("change", applyRange);
+  resetRangeBtn.addEventListener("click", () => {
+    STATE.btRange[mkt] = null;
+    renderBacktestMarket();
+  });
+
+  div.appendChild(controls);
+
+  // 套用自訂區間：重新正規化曲線、重算 KPI 與回撤
+  let effSymData = symData;
+  if (isCustomRange) {
+    const [startIdx, endIdx] = rangeIndices(fullDates, range.start, range.end);
+    const ranged = buildRangedSymData(symData, startIdx, endIdx);
+    if (ranged) {
+      effSymData = ranged;
+      div.appendChild(el("div", "bt-uni-desc",
+        `已套用自訂區間 ${effSymData.buyhold_equity_monthly.dates[0]} ~ ${effSymData.buyhold_equity_monthly.dates[effSymData.buyhold_equity_monthly.dates.length - 1]}：` +
+        "曲線重新正規化為起點 100，KPI 與回撤皆以此區間重新計算。"));
+    }
+  }
+  const strategies = effSymData.strategies || {};
 
   // ── 曲線顯示切換 ───────────────────────────────────────────────────────────
   const hidden = STATE.btHidden[mkt] ?? (STATE.btHidden[mkt] = new Set());
@@ -940,13 +1070,13 @@ function renderBacktestMarket() {
   ddCb.addEventListener("change", () => {
     STATE.btShowDrawdown[mkt] = ddCb.checked;
     ddWrap.style.display = ddCb.checked ? "" : "none";
-    if (ddCb.checked) drawDrawdownChart(ddCanvas, symData, hidden);
+    if (ddCb.checked) drawDrawdownChart(ddCanvas, effSymData, hidden);
   });
 
   for (const s of allSeries) {
     toggles.appendChild(buildSeriesToggle(s, hidden, () => {
-      drawEquityChart(canvas, symData, hidden);
-      if (ddCb.checked) drawDrawdownChart(ddCanvas, symData, hidden);
+      drawEquityChart(canvas, effSymData, hidden);
+      if (ddCb.checked) drawDrawdownChart(ddCanvas, effSymData, hidden);
     }));
   }
   div.appendChild(toggles);
@@ -962,7 +1092,7 @@ function renderBacktestMarket() {
   table.appendChild(kpiHeaderRow());
 
   // Buy-and-hold row
-  const bk = symData.buyhold_kpis;
+  const bk = effSymData.buyhold_kpis;
   const bhRow = el("tr", "buyhold");
   const bhDot = `<span class="color-dot" style="background:${stratColor("buyhold")}"></span>`;
   bhRow.appendChild(infoTd(bhDot + "買進持有", KPI_INFO.buyhold));
@@ -1008,8 +1138,8 @@ function renderBacktestMarket() {
 
   // Draw charts after layout is painted
   requestAnimationFrame(() => {
-    drawEquityChart(canvas, symData, hidden);
-    if (ddCb.checked) drawDrawdownChart(ddCanvas, symData, hidden);
+    drawEquityChart(canvas, effSymData, hidden);
+    if (ddCb.checked) drawDrawdownChart(ddCanvas, effSymData, hidden);
   });
 }
 
