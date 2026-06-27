@@ -1,0 +1,27 @@
+[
+  {
+    "date": "2026-06-27",
+    "updated_at": "2026-06-27T06:09:10Z",
+    "overall": 20.9,
+    "markets": {
+      "US": {
+        "score": 29.0,
+        "factors": {
+          "valuation": 40.7,
+          "sentiment": 24.8,
+          "cycle": 0.31,
+          "rate": 4.38
+        }
+      },
+      "TW": {
+        "score": 12.8,
+        "factors": {
+          "valuation": 31.46,
+          "sentiment": 5909.3,
+          "cycle": 39.0,
+          "rate": 0.0
+        }
+      }
+    }
+  }
+]

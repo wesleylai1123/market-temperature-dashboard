@@ -96,6 +96,17 @@
   .slider .val { font-size: 12px; text-align: right; font-variant-numeric: tabular-nums; }
   .warn { color: var(--amber); font-size: 11px; margin-top: 6px; }
 
+  /* ── History section ─────────────────────────────────────────── */
+  .history-section { margin-top: 32px; display: none; }
+  .history-section.loaded { display: block; }
+  .history-section > h2 { font-size: 16px; margin: 0 0 6px; }
+  .history-section > .bt-sub { color: var(--muted); font-size: 12px; margin-bottom: 16px; }
+  table.strat-table tr.hist-row { cursor: pointer; }
+  table.strat-table tr.hist-row:hover td { background: var(--panel-2); }
+  table.strat-table tr.hist-detail td { white-space: normal; background: #0e1422; padding: 10px 14px; }
+  table.strat-table tr.hist-detail .hd-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 4px 16px; font-size: 11px; color: var(--muted); }
+  table.strat-table .hist-lamp { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+
   /* ── Backtest section ─────────────────────────────────────────── */
   .bt-root { margin-top: 32px; display: none; }
   .bt-root.loaded { display: block; }
@@ -252,6 +263,16 @@
       <h3>台美配置（整體燈號加權）</h3>
       <div id="allocation"></div>
       <div class="warn">依你的實際部位調整，整體燈號 = 美股分數 × 美股配置 + 台股分數 × 台股配置。</div>
+    </div>
+  </div>
+
+  <!-- 歷史報告（有 history.json 才顯示）-->
+  <div class="history-section" id="historySection">
+    <h2>📜 歷史報告</h2>
+    <div class="bt-sub">每日燈號與分數紀錄（由 GitHub Actions 每日寫入 <code>history.json</code>）· 點一列展開當天各因子原始值</div>
+    <canvas id="historyChart" style="width:100%;display:block;margin-bottom:16px;"></canvas>
+    <div class="strat-table-wrap">
+      <table class="strat-table" id="historyTable"></table>
     </div>
   </div>
 
@@ -580,6 +601,55 @@ function renderAllocation() {
 }
 
 function renderAll() { renderMarkets(); renderOverall(); }
+
+// ── 歷史報告 ──────────────────────────────────────────────────────────────────
+function renderHistory(history) {
+  if (!Array.isArray(history) || history.length === 0) return;
+  const sorted = [...history].sort((a, b) => a.date.localeCompare(b.date));
+
+  drawSeriesChart(document.getElementById("historyChart"), sorted.map(h => h.date), [
+    { label: "整體", color: "#e6edf6", values: sorted.map(h => h.overall) },
+    { label: "美股", color: "#2ecc71", dashed: true, values: sorted.map(h => h.markets.US.score) },
+    { label: "台股", color: "#e0a52e", dashed: true, values: sorted.map(h => h.markets.TW.score) },
+  ]);
+
+  const desc = [...sorted].reverse().slice(0, 60);
+  const table = document.getElementById("historyTable");
+  table.innerHTML = "";
+  const head = el("tr", null,
+    "<th>日期</th><th></th><th>整體</th><th>美股</th><th>台股</th>");
+  table.appendChild(head);
+
+  desc.forEach((h) => {
+    const row = el("tr", "hist-row");
+    const dot = `<span class="hist-lamp" style="background:${lampColor(h.overall)}"></span>`;
+    row.innerHTML =
+      `<td>${h.date}</td><td>${dot}</td><td>${h.overall.toFixed(0)}</td>` +
+      `<td>${h.markets.US.score.toFixed(0)}</td><td>${h.markets.TW.score.toFixed(0)}</td>`;
+    table.appendChild(row);
+
+    const detail = el("tr", "hist-detail");
+    detail.style.display = "none";
+    const td = el("td");
+    td.colSpan = 5;
+    const grid = el("div", "hd-grid");
+    for (const mkt of ["US", "TW"]) {
+      const factors = h.markets[mkt].factors || {};
+      for (const dim of Object.keys(factors)) {
+        const label = (DATA.dimension_labels && DATA.dimension_labels[dim]) || dim;
+        grid.appendChild(el("div", null,
+          `${mkt === "US" ? "🇺🇸" : "🇹🇼"} ${label}：<b style="color:var(--text)">${factors[dim]}</b>`));
+      }
+    }
+    td.appendChild(grid);
+    detail.appendChild(td);
+    table.appendChild(detail);
+
+    row.addEventListener("click", () => {
+      detail.style.display = detail.style.display === "none" ? "" : "none";
+    });
+  });
+}
 
 document.getElementById("resetWeights").addEventListener("click", () => {
   for (const dim of DATA.dimensions) DATA.weights[dim] = 1 / DATA.dimensions.length;
@@ -1405,6 +1475,19 @@ async function boot() {
   if (!DATA.allocation) DATA.allocation = { ...SEED.allocation };
 
   renderWeights(); renderAllocation(); renderAll();
+
+  // history.json（選用，每日燈號/分數紀錄）
+  try {
+    const res = await fetch("history.json", { cache: "no-store" });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const history = await res.json();
+    renderHistory(history);
+    if (Array.isArray(history) && history.length) {
+      document.getElementById("historySection").classList.add("loaded");
+    }
+  } catch {
+    // 沒有歷史資料時靜默隱藏
+  }
 
   // backtest_results.json（選用）
   try {

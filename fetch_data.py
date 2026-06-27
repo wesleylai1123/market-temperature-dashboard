@@ -39,6 +39,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 DATA_PATH = Path(__file__).with_name("data.json")
+HISTORY_PATH = Path(__file__).with_name("history.json")
+HISTORY_MAX_DAYS = 400
 FINMIND_URL = "https://api.finmindtrade.com/api/v4/data"
 _CTX = ssl.create_default_context()
 
@@ -345,6 +347,86 @@ def fetch_tw_cycle():
     raise ValueError(f"dataset 6099 CSV 皆解析失敗: {last_err}")
 
 
+# ---- 歷史快照（與 index.html 的 scoreOf()/marketScore()/overallScore() 同一套邏輯）--
+
+def _percentile_rank(value, ref):
+    lo, hi = 0, len(ref)
+    while lo < hi:
+        mid = (lo + hi) // 2
+        if ref[mid] <= value:
+            lo = mid + 1
+        else:
+            hi = mid
+    return lo / len(ref)
+
+
+def _score_of(factor):
+    ref = factor.get("pctile_ref")
+    if isinstance(ref, list) and len(ref) >= 12:
+        pct = _percentile_rank(factor["value"], ref)
+    else:
+        span = factor["cal_max"] - factor["cal_min"]
+        pct = 0.5 if span == 0 else (factor["value"] - factor["cal_min"]) / span
+        pct = max(0.0, min(1.0, pct))
+    return (1 - pct if factor["invert"] else pct) * 100
+
+
+def _market_score(data, mkt):
+    weights, factors = data["weights"], data["markets"][mkt]["factors"]
+    total, wsum = 0.0, 0.0
+    for dim in data["dimensions"]:
+        f = factors.get(dim)
+        if not f:
+            continue
+        w = weights.get(dim, 0.0)
+        total += _score_of(f) * w
+        wsum += w
+    return 50.0 if wsum == 0 else total / wsum
+
+
+def _append_history(data):
+    """把今天的合成分數+各因子原始值寫進 history.json，供 dashboard「歷史報告」使用。
+    同一天重跑會覆蓋當天記錄（不重複累積），保留最近 HISTORY_MAX_DAYS 天。"""
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    us_score = _market_score(data, "US")
+    tw_score = _market_score(data, "TW")
+    alloc = data["allocation"]
+    wsum = alloc.get("US", 0) + alloc.get("TW", 0)
+    overall = (us_score + tw_score) / 2 if wsum == 0 else (
+        us_score * alloc.get("US", 0) + tw_score * alloc.get("TW", 0)
+    ) / wsum
+
+    entry = {
+        "date": today,
+        "updated_at": data["updated_at"],
+        "overall": round(overall, 1),
+        "markets": {
+            mkt: {
+                "score": round(_market_score(data, mkt), 1),
+                "factors": {
+                    dim: data["markets"][mkt]["factors"][dim]["value"]
+                    for dim in data["dimensions"]
+                    if dim in data["markets"][mkt]["factors"]
+                },
+            }
+            for mkt in ("US", "TW")
+        },
+    }
+
+    history = []
+    if HISTORY_PATH.exists():
+        try:
+            history = json.loads(HISTORY_PATH.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, ValueError):
+            history = []
+    history = [h for h in history if h.get("date") != today]
+    history.append(entry)
+    history = history[-HISTORY_MAX_DAYS:]
+    HISTORY_PATH.write_text(
+        json.dumps(history, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+
+
 # ---- 主流程 -------------------------------------------------------------------
 
 FETCHERS = {
@@ -378,6 +460,7 @@ def main():
     DATA_PATH.write_text(
         json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
+    _append_history(data)
 
     print("✅ 更新:", ", ".join(ok) if ok else "(無)")
     if stale:

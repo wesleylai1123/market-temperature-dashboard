@@ -24,6 +24,8 @@
 - 每個因子都附**資料說明**與**資料來源**；抓不到的會標「⚠ 沿用舊值」
 - 展開「▸ 試算這個數字」可手動改值做 what-if；拖曳**權重滑桿**與**台美配置滑桿**看彙總即時變化
 - 讀 `data.json`；任何欄位抓不到就沿用上次值，**永不開天窗**
+- **📜 歷史報告**：`fetch_data.py` 每日把當天的整體/台美分數+各因子原始值寫進 `history.json`，
+  dashboard 下方畫出歷史趨勢圖，並可展開每一天的明細（見下方說明）
 
 燈號門檻（積極度 0–100，數字越高越偏積極/逆向加碼）：
 
@@ -183,15 +185,25 @@ python run_backtest.py --market TW --price data/tw_price.csv --factors data/tw_f
 - [x] vectorbt 回測驗證燈號（台美雙市場，含 lookahead 防護，支援多標的並列比較）
 - [x] 接台股景氣對策信號（data.gov.tw 景氣指標及燈號, dataset 6099, 國發會）
 - [x] `scoreOf()` 換成歷史百分位（取代線性映射）
+- [x] 歷史報告（每日燈號/分數紀錄 `history.json` + dashboard 趨勢圖與展開明細）
 - [ ] 燈號翻轉/跨閾值時推 Telegram 通知
+
+## 歷史報告
+
+`fetch_data.py` 每次執行（含 GitHub Actions 排程）都會用 `index.html` 同一套
+`scoreOf()`/`marketScore()`/`overallScore()` 邏輯（Python 對應版本），算出當天的
+整體分數、台美分數與各因子原始值，append 進 `history.json`（同一天重跑會覆蓋，非累積；
+保留最近 400 天）。dashboard 讀到 `history.json` 就會在因子卡片下方顯示「📜 歷史報告」：
+趨勢線圖（整體/美股/台股分數）+ 可展開明細的歷史列表。沒有 `history.json` 時此區塊不顯示。
 
 ## 檔案結構
 
 ```
 .
-├── index.html                 # 互動 widget（讀 data.json，大字呈現數值 + 說明 + 來源）
-├── fetch_data.py              # 抓各因子原始值 → data.json（零相依，含重試/瀏覽器標頭）
+├── index.html                 # 互動 widget（讀 data.json，大字呈現數值 + 說明 + 來源；history.json 則畫歷史報告）
+├── fetch_data.py              # 抓各因子原始值 → data.json + history.json（零相依，含重試/瀏覽器標頭）
 ├── data.json                  # 種子數據 + 每因子的 desc/cal/invert/source，Actions 持續更新 value
+├── history.json                # 每日燈號/分數快照（Actions 持續 append，供「歷史報告」使用）
 ├── requirements.txt
 ├── backtest/                  # vectorbt 回測（驗證燈號歷史有效性）
 │   ├── fetch_history.py       #   抓因子+價格歷史 → data/*.csv

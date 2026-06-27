@@ -29,14 +29,14 @@ jobs:
           FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }} # 可選；未設則走 FinMind 匿名(限流較低)
         run: python fetch_data.py
 
-      - name: Commit updated data.json
+      - name: Commit updated data.json / history.json
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          if git diff --quiet -- data.json; then
-            echo "data.json 無變動，略過 commit"
+          if git diff --quiet -- data.json history.json; then
+            echo "data.json / history.json 無變動，略過 commit"
           else
-            git add data.json
+            git add data.json history.json
             git commit -m "chore: update dashboard data ($(date -u +%Y-%m-%dT%H:%MZ))"
             git push
           fi
