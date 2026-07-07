@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-07-06T23:37:23Z",
+  "updated_at": "2026-07-07T23:29:09Z",
   "note": "種子數據。GitHub Actions 會以 fetch_data.py 更新 value/stale/updated_at；其餘欄位(desc/cal/invert…)由人維護。",
   "dimensions": [
     "valuation",
@@ -29,7 +29,7 @@
       "factors": {
         "valuation": {
           "label": "估值 · Shiller CAPE",
-          "value": 41.97,
+          "value": 41.77,
           "unit": "x",
           "cal_min": 10,
           "cal_max": 40,
@@ -41,7 +41,7 @@
         },
         "sentiment": {
           "label": "情緒 · CNN 恐懼貪婪",
-          "value": 43.9,
+          "value": 43.0,
           "unit": "",
           "cal_min": 0,
           "cal_max": 100,
@@ -497,7 +497,7 @@
       "factors": {
         "valuation": {
           "label": "估值 · 台積電本益比(大盤代理)",
-          "value": 33.07,
+          "value": 32.8,
           "unit": "x",
           "cal_min": 12,
           "cal_max": 32,
@@ -709,7 +709,7 @@
         },
         "sentiment": {
           "label": "情緒 · 融資餘額",
-          "value": 6313.4,
+          "value": 6109.5,
           "unit": "億",
           "cal_min": 2000,
           "cal_max": 8000,
@@ -1141,7 +1141,7 @@
           "direction": "外資買超 → 偏積極 / 賣超 → 防禦",
           "desc": "外資當日買賣超金額(億元)。買超=資金流入偏積極、賣超=流出轉防禦。目前為單日 proxy，非交易日無資料會沿用舊值。",
           "source": "TWSE (單日 proxy)",
-          "stale": false,
+          "stale": true,
           "pctile_ref": [
             -944.1738,
             -807.4551,
