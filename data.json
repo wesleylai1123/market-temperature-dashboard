@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-07-17T23:23:11Z",
+  "updated_at": "2026-07-18T23:25:22Z",
   "note": "種子數據。GitHub Actions 會以 fetch_data.py 更新 value/stale/updated_at；其餘欄位(desc/cal/invert…)由人維護。",
   "dimensions": [
     "valuation",
@@ -1141,7 +1141,7 @@
           "direction": "外資買超 → 偏積極 / 賣超 → 防禦",
           "desc": "外資當日買賣超金額(億元)。買超=資金流入偏積極、賣超=流出轉防禦。目前為單日 proxy，非交易日無資料會沿用舊值。",
           "source": "TWSE (單日 proxy)",
-          "stale": false,
+          "stale": true,
           "pctile_ref": [
             -944.1738,
             -807.4551,
