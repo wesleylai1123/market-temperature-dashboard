@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-07-22T23:29:00Z",
+  "updated_at": "2026-07-23T23:27:19Z",
   "note": "種子數據。GitHub Actions 會以 fetch_data.py 更新 value/stale/updated_at；其餘欄位(desc/cal/invert…)由人維護。",
   "dimensions": [
     "valuation",
@@ -29,7 +29,7 @@
       "factors": {
         "valuation": {
           "label": "估值 · Shiller CAPE",
-          "value": 40.94,
+          "value": 40.42,
           "unit": "x",
           "cal_min": 10,
           "cal_max": 40,
@@ -41,7 +41,7 @@
         },
         "sentiment": {
           "label": "情緒 · CNN 恐懼貪婪",
-          "value": 42.8,
+          "value": 39.6,
           "unit": "",
           "cal_min": 0,
           "cal_max": 100,
@@ -68,7 +68,7 @@
         },
         "cycle": {
           "label": "景氣 · 殖利率曲線 10Y–2Y",
-          "value": 0.36,
+          "value": 0.34,
           "unit": "%",
           "cal_min": -1.0,
           "cal_max": 2.5,
@@ -280,7 +280,7 @@
         },
         "rate": {
           "label": "利率 · 10年期殖利率",
-          "value": 4.67,
+          "value": 4.71,
           "unit": "%",
           "cal_min": 1.0,
           "cal_max": 5.5,
@@ -497,7 +497,7 @@
       "factors": {
         "valuation": {
           "label": "估值 · 台積電本益比(大盤代理)",
-          "value": 32.27,
+          "value": 32.33,
           "unit": "x",
           "cal_min": 12,
           "cal_max": 32,
@@ -709,7 +709,7 @@
         },
         "sentiment": {
           "label": "情緒 · 融資餘額",
-          "value": 5828.2,
+          "value": 5826.3,
           "unit": "億",
           "cal_min": 2000,
           "cal_max": 8000,
