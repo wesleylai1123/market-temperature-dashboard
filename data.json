@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-08-12T23:10:04Z",
+  "updated_at": "2026-08-13T23:11:08Z",
   "note": "種子數據。GitHub Actions 會以 fetch_data.py 更新 value/stale/updated_at；其餘欄位(desc/cal/invert…)由人維護。",
   "dimensions": [
     "valuation",
@@ -29,7 +29,7 @@
       "factors": {
         "valuation": {
           "label": "估值 · Shiller CAPE",
-          "value": 42.34,
+          "value": 42.65,
           "unit": "x",
           "cal_min": 10,
           "cal_max": 40,
@@ -41,7 +41,7 @@
         },
         "sentiment": {
           "label": "情緒 · CNN 恐懼貪婪",
-          "value": 62.1,
+          "value": 66.1,
           "unit": "",
           "cal_min": 0,
           "cal_max": 100,
@@ -280,7 +280,7 @@
         },
         "rate": {
           "label": "利率 · 10年期殖利率",
-          "value": 4.68,
+          "value": 4.63,
           "unit": "%",
           "cal_min": 1.0,
           "cal_max": 5.5,
@@ -497,7 +497,7 @@
       "factors": {
         "valuation": {
           "label": "估值 · 台積電本益比(大盤代理)",
-          "value": 32.2,
+          "value": 32.74,
           "unit": "x",
           "cal_min": 12,
           "cal_max": 32,
@@ -505,7 +505,7 @@
           "direction": "越貴 → 越防禦",
           "desc": "以台積電(2330)本益比代理大盤估值（佔加權指數約三成的權值龍頭）。歷史多在 12–32，越高越貴。注意：非市值加權的整體大盤本益比，為龍頭代理。",
           "source": "FinMind (2330 PER)",
-          "stale": true,
+          "stale": false,
           "pctile_ref": [
             10.63,
             10.69,
@@ -709,7 +709,7 @@
         },
         "sentiment": {
           "label": "情緒 · 融資餘額",
-          "value": 5441.5,
+          "value": 5497.8,
           "unit": "億",
           "cal_min": 2000,
           "cal_max": 8000,
@@ -717,7 +717,7 @@
           "direction": "融資越高(過熱) → 越防禦",
           "desc": "整體市場融資餘額金額(億元)，代理散戶槓桿情緒。融資高漲=過熱轉防禦、急縮=恐慌可逆向。cal 區間為實測量級placeholder，正式版改百分位。",
           "source": "FinMind (整體融資)",
-          "stale": true,
+          "stale": false,
           "pctile_ref": [
             918.9812,
             1044.6837,
