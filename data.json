@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-08-15T22:46:38Z",
+  "updated_at": "2026-08-16T22:45:57Z",
   "note": "種子數據。GitHub Actions 會以 fetch_data.py 更新 value/stale/updated_at；其餘欄位(desc/cal/invert…)由人維護。",
   "dimensions": [
     "valuation",
