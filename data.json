@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-08-17T22:49:38Z",
+  "updated_at": "2026-08-18T22:50:09Z",
   "note": "種子數據。GitHub Actions 會以 fetch_data.py 更新 value/stale/updated_at；其餘欄位(desc/cal/invert…)由人維護。",
   "dimensions": [
     "valuation",
@@ -29,7 +29,7 @@
       "factors": {
         "valuation": {
           "label": "估值 · Shiller CAPE",
-          "value": 42.35,
+          "value": 42.06,
           "unit": "x",
           "cal_min": 10,
           "cal_max": 40,
@@ -41,7 +41,7 @@
         },
         "sentiment": {
           "label": "情緒 · CNN 恐懼貪婪",
-          "value": 60.0,
+          "value": 54.4,
           "unit": "",
           "cal_min": 0,
           "cal_max": 100,
@@ -497,7 +497,7 @@
       "factors": {
         "valuation": {
           "label": "估值 · 台積電本益比(大盤代理)",
-          "value": 27.82,
+          "value": 27.59,
           "unit": "x",
           "cal_min": 12,
           "cal_max": 32,
@@ -709,7 +709,7 @@
         },
         "sentiment": {
           "label": "情緒 · 融資餘額",
-          "value": 5501.0,
+          "value": 5470.1,
           "unit": "億",
           "cal_min": 2000,
           "cal_max": 8000,
