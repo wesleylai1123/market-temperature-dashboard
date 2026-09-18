@@ -1,0 +1,30 @@
+name: contracts
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install contract validator
+        run: pip install "jsonschema>=4.23,<5"
+      - name: Validate schemas and fixtures
+        run: python contract_tests/validate_contracts.py --report artifacts/contract-compatibility.html
+      - name: Upload compatibility report
+        uses: actions/upload-artifact@v4
+        with:
+          name: contract-compatibility-report
+          path: artifacts/contract-compatibility.html
+          if-no-files-found: error
