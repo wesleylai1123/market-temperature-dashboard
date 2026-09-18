@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/wesleylai1123/market-temperature-dashboard/blob/main/contracts/market-regime/v1/schema.json",
+  "title": "MarketRegimeV1",
+  "description": "Point-in-time macro and market regime produced by market-temperature-dashboard.",
+  "x-contract-owner": "wesleylai1123/market-temperature-dashboard",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract", "schema_version", "market", "as_of", "available_at",
+    "raw_factors", "normalized_factor_scores", "composite_score", "regime",
+    "industry_states", "factor_weights", "thresholds", "config_version", "freshness"
+  ],
+  "properties": {
+    "contract": {"const": "MarketRegimeV1"},
+    "schema_version": {"const": "1.0.0"},
+    "market": {"type": "string", "minLength": 1},
+    "as_of": {"type": "string", "format": "date"},
+    "available_at": {"type": "string", "format": "date-time"},
+    "raw_factors": {
+      "type": "object", "minProperties": 1,
+      "additionalProperties": {"type": ["number", "null"]}
+    },
+    "normalized_factor_scores": {
+      "type": "object", "minProperties": 1,
+      "additionalProperties": {"type": "number", "minimum": 0, "maximum": 100}
+    },
+    "composite_score": {"type": "number", "minimum": 0, "maximum": 100},
+    "regime": {"enum": ["risk_on", "neutral", "risk_off"]},
+    "industry_states": {
+      "type": "object",
+      "additionalProperties": {"enum": ["overweight", "neutral", "underweight"]}
+    },
+    "factor_weights": {
+      "type": "object", "minProperties": 1,
+      "additionalProperties": {"type": "number", "minimum": 0, "maximum": 1}
+    },
+    "thresholds": {
+      "type": "object", "minProperties": 1,
+      "additionalProperties": {"type": "number"}
+    },
+    "config_version": {"type": "string", "minLength": 1},
+    "freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["is_stale", "sources"],
+      "properties": {
+        "is_stale": {"type": "boolean"},
+        "sources": {
+          "type": "array", "minItems": 1,
+          "items": {
+            "type": "object", "additionalProperties": false,
+            "required": ["source", "source_timestamp", "is_stale"],
+            "properties": {
+              "source": {"type": "string", "minLength": 1},
+              "source_timestamp": {"type": "string", "format": "date-time"},
+              "is_stale": {"type": "boolean"}
+            }
+          }
+        }
+      }
+    }
+  }
+}

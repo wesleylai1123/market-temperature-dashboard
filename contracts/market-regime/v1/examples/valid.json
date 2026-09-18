@@ -1,0 +1,22 @@
+{
+  "contract": "MarketRegimeV1",
+  "schema_version": "1.0.0",
+  "market": "TW",
+  "as_of": "2026-09-17",
+  "available_at": "2026-09-18T07:00:00+08:00",
+  "raw_factors": {"valuation_pe": 21.4, "margin_balance": 5861.7, "yield_curve": 0.27},
+  "normalized_factor_scores": {"valuation": 38.0, "sentiment": 62.0, "cycle": 55.0},
+  "composite_score": 52.1,
+  "regime": "neutral",
+  "industry_states": {"semiconductor": "overweight", "financials": "neutral"},
+  "factor_weights": {"valuation": 0.35, "sentiment": 0.30, "cycle": 0.35},
+  "thresholds": {"risk_on": 65.0, "risk_off": 35.0},
+  "config_version": "tw-market-temperature-v1.0.0",
+  "freshness": {
+    "is_stale": false,
+    "sources": [
+      {"source": "TWSE", "source_timestamp": "2026-09-17T14:30:00+08:00", "is_stale": false},
+      {"source": "FinMind", "source_timestamp": "2026-09-17T18:00:00+08:00", "is_stale": false}
+    ]
+  }
+}

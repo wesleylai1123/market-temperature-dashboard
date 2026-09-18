@@ -1,0 +1,15 @@
+{
+  "contract": "MarketRegimeV1",
+  "schema_version": "1.0.0",
+  "market": "TW",
+  "as_of": "2026-09-17",
+  "raw_factors": {"valuation_pe": 21.4},
+  "normalized_factor_scores": {"valuation": 38.0},
+  "composite_score": 52.1,
+  "regime": "neutral",
+  "industry_states": {},
+  "factor_weights": {"valuation": 1.0},
+  "thresholds": {"risk_on": 65.0},
+  "config_version": "missing-available-at",
+  "freshness": {"is_stale": false, "sources": [{"source": "TWSE", "source_timestamp": "2026-09-17T14:30:00+08:00", "is_stale": false}]}
+}
