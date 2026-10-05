@@ -19,7 +19,7 @@ jobs:
         with:
           python-version: "3.11"
       - name: Install contract validator
-        run: pip install "jsonschema>=4.23,<5"
+        run: pip install "jsonschema>=4.23,<5" "rfc3339-validator==0.1.4"
       - name: Validate schemas and fixtures
         run: python contract_tests/validate_contracts.py --report artifacts/contract-compatibility.html
       - name: Upload compatibility report

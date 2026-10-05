@@ -369,6 +369,7 @@ def main():
             value = fn()
             factor["value"] = value
             factor["stale"] = False
+            factor["source_timestamp"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
             ok.append(f"{mkt}/{dim}={value}")
         except Exception as exc:  # noqa: BLE001 — 任何失敗都沿用舊值
             factor["stale"] = True
