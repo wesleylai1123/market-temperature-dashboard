@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-10-05T01:06:47Z",
+  "updated_at": "2026-10-06T02:23:32Z",
   "note": "種子數據。GitHub Actions 會以 fetch_data.py 更新 value/stale/updated_at；其餘欄位(desc/cal/invert…)由人維護。",
   "dimensions": [
     "valuation",
@@ -29,7 +29,7 @@
       "factors": {
         "valuation": {
           "label": "估值 · Shiller CAPE",
-          "value": 41.38,
+          "value": 41.67,
           "unit": "x",
           "cal_min": 10,
           "cal_max": 40,
@@ -37,11 +37,12 @@
           "direction": "越貴 → 越防禦",
           "desc": "席勒本益比（10年通膨調整 EPS）。衡量大盤現在貴不貴，與長期預期報酬負相關。歷史多落在 10–40，越高代表越貴、未來報酬越低。",
           "source": "multpl.com (CAPE)",
-          "stale": false
+          "stale": false,
+          "source_timestamp": "2026-10-06T02:23:29Z"
         },
         "sentiment": {
           "label": "情緒 · CNN 恐懼貪婪",
-          "value": 31.2,
+          "value": 43.1,
           "unit": "",
           "cal_min": 0,
           "cal_max": 100,
@@ -64,11 +65,12 @@
             63.7143,
             69.2286,
             69.5143
-          ]
+          ],
+          "source_timestamp": "2026-10-06T02:23:29Z"
         },
         "cycle": {
           "label": "景氣 · 殖利率曲線 10Y–2Y",
-          "value": 0.45,
+          "value": 0.47,
           "unit": "%",
           "cal_min": -1.0,
           "cal_max": 2.5,
@@ -276,11 +278,12 @@
             2.81,
             2.82,
             2.84
-          ]
+          ],
+          "source_timestamp": "2026-10-06T02:23:29Z"
         },
         "rate": {
           "label": "利率 · 10年期殖利率",
-          "value": 5.28,
+          "value": 5.31,
           "unit": "%",
           "cal_min": 1.0,
           "cal_max": 5.5,
@@ -488,7 +491,8 @@
             4.59,
             4.69,
             4.88
-          ]
+          ],
+          "source_timestamp": "2026-10-06T02:23:29Z"
         }
       }
     },
@@ -497,7 +501,7 @@
       "factors": {
         "valuation": {
           "label": "估值 · 台積電本益比(大盤代理)",
-          "value": 28.98,
+          "value": 29.85,
           "unit": "x",
           "cal_min": 12,
           "cal_max": 32,
@@ -705,11 +709,12 @@
             31.2,
             31.66,
             32.23
-          ]
+          ],
+          "source_timestamp": "2026-10-06T02:23:29Z"
         },
         "sentiment": {
           "label": "情緒 · 融資餘額",
-          "value": 6351.0,
+          "value": 6333.5,
           "unit": "億",
           "cal_min": 2000,
           "cal_max": 8000,
@@ -917,7 +922,8 @@
             4609.0458,
             5563.5965,
             5570.2795
-          ]
+          ],
+          "source_timestamp": "2026-10-06T02:23:30Z"
         },
         "cycle": {
           "label": "景氣 · 國發會景氣對策信號",
@@ -1129,7 +1135,8 @@
             41.0,
             41.0,
             41.0
-          ]
+          ],
+          "source_timestamp": "2026-10-06T02:23:31Z"
         },
         "rate": {
           "label": "資金 · 外資買賣超",
