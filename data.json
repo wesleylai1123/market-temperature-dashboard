@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-10-23T00:48:17Z",
+  "updated_at": "2026-10-24T00:55:24Z",
   "note": "種子數據。GitHub Actions 會以 fetch_data.py 更新 value/stale/updated_at；其餘欄位(desc/cal/invert…)由人維護。",
   "dimensions": [
     "valuation",
@@ -29,7 +29,7 @@
       "factors": {
         "valuation": {
           "label": "估值 · Shiller CAPE",
-          "value": 40.58,
+          "value": 40.36,
           "unit": "x",
           "cal_min": 10,
           "cal_max": 40,
@@ -38,11 +38,11 @@
           "desc": "席勒本益比（10年通膨調整 EPS）。衡量大盤現在貴不貴，與長期預期報酬負相關。歷史多落在 10–40，越高代表越貴、未來報酬越低。",
           "source": "multpl.com (CAPE)",
           "stale": false,
-          "source_timestamp": "2026-10-23T00:48:13Z"
+          "source_timestamp": "2026-10-24T00:55:20Z"
         },
         "sentiment": {
           "label": "情緒 · CNN 恐懼貪婪",
-          "value": 19.8,
+          "value": 21.0,
           "unit": "",
           "cal_min": 0,
           "cal_max": 100,
@@ -66,7 +66,7 @@
             69.2286,
             69.5143
           ],
-          "source_timestamp": "2026-10-23T00:48:13Z"
+          "source_timestamp": "2026-10-24T00:55:20Z"
         },
         "cycle": {
           "label": "景氣 · 殖利率曲線 10Y–2Y",
@@ -279,11 +279,11 @@
             2.82,
             2.84
           ],
-          "source_timestamp": "2026-10-23T00:48:13Z"
+          "source_timestamp": "2026-10-24T00:55:20Z"
         },
         "rate": {
           "label": "利率 · 10年期殖利率",
-          "value": 4.96,
+          "value": 5.0,
           "unit": "%",
           "cal_min": 1.0,
           "cal_max": 5.5,
@@ -492,7 +492,7 @@
             4.69,
             4.88
           ],
-          "source_timestamp": "2026-10-23T00:48:13Z"
+          "source_timestamp": "2026-10-24T00:55:20Z"
         }
       }
     },
@@ -710,7 +710,7 @@
             31.66,
             32.23
           ],
-          "source_timestamp": "2026-10-23T00:48:14Z"
+          "source_timestamp": "2026-10-24T00:55:21Z"
         },
         "sentiment": {
           "label": "情緒 · 融資餘額",
@@ -923,7 +923,7 @@
             5563.5965,
             5570.2795
           ],
-          "source_timestamp": "2026-10-23T00:48:14Z"
+          "source_timestamp": "2026-10-24T00:55:21Z"
         },
         "cycle": {
           "label": "景氣 · 國發會景氣對策信號",
@@ -1136,7 +1136,7 @@
             41.0,
             41.0
           ],
-          "source_timestamp": "2026-10-23T00:48:16Z"
+          "source_timestamp": "2026-10-24T00:55:22Z"
         },
         "rate": {
           "label": "資金 · 外資買賣超",
