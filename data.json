@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-11-24T06:14:33Z",
+  "updated_at": "2026-11-25T04:58:22Z",
   "note": "種子數據。GitHub Actions 會以 fetch_data.py 更新 value/stale/updated_at；其餘欄位(desc/cal/invert…)由人維護。",
   "dimensions": [
     "valuation",
@@ -42,7 +42,7 @@
         },
         "sentiment": {
           "label": "情緒 · CNN 恐懼貪婪",
-          "value": 17.0,
+          "value": 17.4,
           "unit": "",
           "cal_min": 0,
           "cal_max": 100,
@@ -66,11 +66,11 @@
             69.2286,
             69.5143
           ],
-          "source_timestamp": "2026-11-24T06:14:29Z"
+          "source_timestamp": "2026-11-25T04:58:18Z"
         },
         "cycle": {
           "label": "景氣 · 殖利率曲線 10Y–2Y",
-          "value": 0.29,
+          "value": 0.28,
           "unit": "%",
           "cal_min": -1.0,
           "cal_max": 2.5,
@@ -279,11 +279,11 @@
             2.82,
             2.84
           ],
-          "source_timestamp": "2026-11-24T06:14:29Z"
+          "source_timestamp": "2026-11-25T04:58:18Z"
         },
         "rate": {
           "label": "利率 · 10年期殖利率",
-          "value": 4.92,
+          "value": 4.91,
           "unit": "%",
           "cal_min": 1.0,
           "cal_max": 5.5,
@@ -492,7 +492,7 @@
             4.69,
             4.88
           ],
-          "source_timestamp": "2026-11-24T06:14:29Z"
+          "source_timestamp": "2026-11-25T04:58:18Z"
         }
       }
     },
@@ -501,7 +501,7 @@
       "factors": {
         "valuation": {
           "label": "估值 · 台積電本益比(大盤代理)",
-          "value": 20.66,
+          "value": 22.7,
           "unit": "x",
           "cal_min": 12,
           "cal_max": 32,
@@ -710,11 +710,11 @@
             31.66,
             32.23
           ],
-          "source_timestamp": "2026-11-24T06:14:30Z"
+          "source_timestamp": "2026-11-25T04:58:19Z"
         },
         "sentiment": {
           "label": "情緒 · 融資餘額",
-          "value": 4338.1,
+          "value": 4535.1,
           "unit": "億",
           "cal_min": 2000,
           "cal_max": 8000,
@@ -923,7 +923,7 @@
             5563.5965,
             5570.2795
           ],
-          "source_timestamp": "2026-11-24T06:14:30Z"
+          "source_timestamp": "2026-11-25T04:58:19Z"
         },
         "cycle": {
           "label": "景氣 · 國發會景氣對策信號",
@@ -1136,7 +1136,7 @@
             41.0,
             41.0
           ],
-          "source_timestamp": "2026-11-24T06:14:31Z"
+          "source_timestamp": "2026-11-25T04:58:21Z"
         },
         "rate": {
           "label": "資金 · 外資買賣超",
